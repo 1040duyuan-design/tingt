@@ -2,6 +2,7 @@
   const form = document.getElementById("chat-form");
   const input = document.getElementById("message-input");
   const chatLog = document.getElementById("chat-log");
+  const button = form.querySelector("button");
   const sessionId = crypto.randomUUID();
   const NETWORK_FALLBACK = "刚刚网络抖了一下，你再发一句。";
 
@@ -22,6 +23,11 @@
     chatLog.scrollTop = chatLog.scrollHeight;
   }
 
+  function autosize() {
+    input.style.height = "auto";
+    input.style.height = `${Math.min(input.scrollHeight, 180)}px`;
+  }
+
   async function onSubmit(event) {
     event.preventDefault();
     const message = input.value.trim();
@@ -29,8 +35,7 @@
 
     appendMessage("user", "你", message);
     input.value = "";
-
-    const button = form.querySelector("button");
+    autosize();
     button.disabled = true;
     button.textContent = "发送中...";
 
@@ -69,8 +74,20 @@
     } finally {
       button.disabled = false;
       button.textContent = "发送";
+      input.focus();
     }
   }
 
+  input.addEventListener("input", autosize);
+  input.addEventListener("keydown", function (event) {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      if (!button.disabled) {
+        form.requestSubmit();
+      }
+    }
+  });
+
   form.addEventListener("submit", onSubmit);
+  autosize();
 })();

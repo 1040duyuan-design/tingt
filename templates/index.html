@@ -4,14 +4,21 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{{ title }}</title>
-    <link rel="stylesheet" href="/static/app.css?v=20260415a" />
+    <link rel="stylesheet" href="/static/app.css?v=20260415b" />
   </head>
   <body>
     <main class="page">
       <section class="hero">
-        <p class="eyebrow">TingT Clone MVP</p>
-        <h1>{{ title }}</h1>
-        <p class="subtitle">{{ subtitle }}</p>
+        <div class="hero-copy">
+          <p class="eyebrow">TingT Clone</p>
+          <h1>{{ title }}</h1>
+          <p class="subtitle">{{ subtitle }}</p>
+        </div>
+        <div class="hero-note">
+          <p class="note-label">当前状态</p>
+          <p class="note-value">可直接聊天</p>
+          <p class="note-text">回车发送，Shift + 回车换行。</p>
+        </div>
       </section>
 
       <section class="chat-shell">
@@ -23,10 +30,14 @@
         </div>
 
         <form id="chat-form" class="composer">
+          <div class="composer-head">
+            <p class="composer-title">直接开聊</p>
+            <p class="composer-tip">Enter 发送，Shift + Enter 换行</p>
+          </div>
           <textarea
             id="message-input"
             name="message"
-            rows="3"
+            rows="1"
             placeholder="输入你想说的话..."
             required
           ></textarea>
@@ -37,6 +48,6 @@
         </form>
       </section>
     </main>
-    <script src="/static/app.js?v=20260415a"></script>
+    <script src="/static/app.js?v=20260415b"></script>
   </body>
 </html>
