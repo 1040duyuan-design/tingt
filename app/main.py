@@ -14,6 +14,11 @@ from .generator import generate_reply
 from .models import IncomingMessage, ReplyResponse
 from .router import build_runtime_prompt
 from .safety import safety_gate
+from .session_memory import (
+    append_assistant_message,
+    append_user_message,
+    get_session_history,
+)
 from .web_models import WebChatRequest, WebChatResponse
 
 
@@ -126,9 +131,12 @@ def web_chat(payload: WebChatRequest) -> WebChatResponse:
             reason=blocked_reason,
         )
 
-    prompt = build_runtime_prompt(contact, classification.mode)
+    history = get_session_history(payload.session_id)
+    prompt = build_runtime_prompt(contact, classification.mode, history=history)
     try:
         reply = generate_reply(prompt, payload.message)
+        append_user_message(payload.session_id, payload.message)
+        append_assistant_message(payload.session_id, reply)
         log_chat_event(
             "web_chat_reply",
             session_id=payload.session_id,
@@ -137,6 +145,7 @@ def web_chat(payload: WebChatRequest) -> WebChatResponse:
             mode=classification.mode,
             confidence=classification.confidence,
             degraded=False,
+            history_turns=len(history),
         )
         return WebChatResponse(
             ok=True,
@@ -155,6 +164,7 @@ def web_chat(payload: WebChatRequest) -> WebChatResponse:
             confidence=classification.confidence,
             degraded=True,
             reason=str(exc),
+            history_turns=len(history),
         )
         return WebChatResponse(
             ok=True,
