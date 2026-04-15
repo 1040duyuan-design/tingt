@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/app.css?v=20260415a" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <p class="eyebrow">TingT Clone MVP</p>
+        <h1>{{ title }}</h1>
+        <p class="subtitle">{{ subtitle }}</p>
+      </section>
+
+      <section class="chat-shell">
+        <div id="chat-log" class="chat-log">
+          <div class="message assistant">
+            <p class="meta">TingT 分身</p>
+            <p>在。你直接说。</p>
+          </div>
+        </div>
+
+        <form id="chat-form" class="composer">
+          <textarea
+            id="message-input"
+            name="message"
+            rows="3"
+            placeholder="输入你想说的话..."
+            required
+          ></textarea>
+          <div class="composer-row">
+            <p class="hint">这是测试版，偶尔会不稳，但我会继续收。</p>
+            <button type="submit">发送</button>
+          </div>
+        </form>
+      </section>
+    </main>
+    <script src="/static/app.js?v=20260415a"></script>
+  </body>
+</html>

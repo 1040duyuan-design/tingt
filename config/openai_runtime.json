@@ -1,0 +1,12 @@
+{
+  "provider": "siliconflow",
+  "model": "Qwen/Qwen2.5-72B-Instruct",
+  "api_key_source": "tingt_siliconflow_key",
+  "temperature": 0.8,
+  "max_output_tokens": 400,
+  "language": "zh-CN",
+  "mode": "auto_send",
+  "low_confidence_behavior": "do_not_reply",
+  "confidence_threshold": 0.8,
+  "safety_gate": true
+}

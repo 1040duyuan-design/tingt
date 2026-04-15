@@ -1,0 +1,76 @@
+(function () {
+  const form = document.getElementById("chat-form");
+  const input = document.getElementById("message-input");
+  const chatLog = document.getElementById("chat-log");
+  const sessionId = crypto.randomUUID();
+  const NETWORK_FALLBACK = "刚刚网络抖了一下，你再发一句。";
+
+  function appendMessage(role, meta, text) {
+    const wrapper = document.createElement("div");
+    wrapper.className = `message ${role}`;
+
+    const metaEl = document.createElement("p");
+    metaEl.className = "meta";
+    metaEl.textContent = meta;
+
+    const textEl = document.createElement("p");
+    textEl.textContent = text;
+
+    wrapper.appendChild(metaEl);
+    wrapper.appendChild(textEl);
+    chatLog.appendChild(wrapper);
+    chatLog.scrollTop = chatLog.scrollHeight;
+  }
+
+  async function onSubmit(event) {
+    event.preventDefault();
+    const message = input.value.trim();
+    if (!message) return;
+
+    appendMessage("user", "你", message);
+    input.value = "";
+
+    const button = form.querySelector("button");
+    button.disabled = true;
+    button.textContent = "发送中...";
+
+    try {
+      let response;
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          response = await fetch("/chat", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              session_id: sessionId,
+              message,
+            }),
+          });
+          if (!response.ok) {
+            throw new Error(`http_${response.status}`);
+          }
+          break;
+        } catch (error) {
+          if (attempt === 1) throw error;
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+      }
+
+      const data = await response.json();
+      appendMessage(
+        "assistant",
+        data.degraded ? "TingT 分身（降级）" : "TingT 分身",
+        data.reply
+      );
+    } catch (error) {
+      appendMessage("assistant", "TingT 分身（网络重试失败）", NETWORK_FALLBACK);
+    } finally {
+      button.disabled = false;
+      button.textContent = "发送";
+    }
+  }
+
+  form.addEventListener("submit", onSubmit);
+})();

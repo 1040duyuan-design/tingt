@@ -1,0 +1,4 @@
+{
+  "notes": "Optional manual overrides. Keep empty at the beginning and only write here when automatic classification is consistently wrong.",
+  "overrides": {}
+}
