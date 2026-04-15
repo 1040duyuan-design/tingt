@@ -77,7 +77,7 @@ def latest_session(x_debug_key: str | None = Header(default=None)) -> dict:
 
 @app.post("/generate-reply", response_model=ReplyResponse)
 def generate(payload: IncomingMessage) -> ReplyResponse:
-    classification = classify_contact(payload.contact, payload.message)
+    classification = classify_contact(payload.contact, payload.message, history=None)
     allowed, blocked_reason = safety_gate(payload.message, classification.confidence)
 
     if not allowed:
@@ -117,12 +117,12 @@ def generate(payload: IncomingMessage) -> ReplyResponse:
 def web_chat(payload: WebChatRequest) -> WebChatResponse:
     # Web MVP has no real contact identity yet, so use a generic browser visitor label.
     contact = "web_visitor"
-    classification = classify_contact(contact, payload.message)
     browser_history = [
         {"role": item.role, "content": item.content}
         for item in payload.history
         if item.role in {"user", "assistant"} and item.content.strip()
     ]
+    classification = classify_contact(contact, payload.message, history=browser_history)
     # Web chat should still answer normal low-context questions.
     # Only block clearly sensitive topics here; do not block generic visitors
     # just because relationship confidence is still low.

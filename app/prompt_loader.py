@@ -18,6 +18,7 @@ def build_base_prompt() -> str:
         read_text("resume_memory.md"),
         read_text("self_memory.md"),
         read_text("persona.md"),
+        read_text("secret_mode_guard.md"),
         read_text("reply_mechanism.md"),
         read_text("anti_echo_policy.md"),
         read_text("bad_case_buckets.md"),
@@ -28,3 +29,9 @@ def build_base_prompt() -> str:
         read_text("forbidden_examples.md"),
     ]
     return "\n\n".join(part for part in parts if part.strip())
+
+
+def build_mode_prompt(mode: str) -> str:
+    if mode == "locked_intimate":
+        return read_text("locked_intimate_mode.md")
+    return ""
