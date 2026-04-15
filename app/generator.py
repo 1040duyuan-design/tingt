@@ -23,9 +23,17 @@ def is_echo_reply(user_message: str, reply: str) -> bool:
     reply_norm = normalize_for_echo_check(reply)
     if not user_norm or not reply_norm:
         return False
-    if len(user_norm) > 24:
+    if reply_norm in {"在"} and user_norm in {"在吗", "在嘛", "在不", "在?"}:
         return False
-    return user_norm == reply_norm
+    if len(user_norm) > 24:
+        if reply_norm and user_norm.endswith(reply_norm) and len(reply_norm) <= 8:
+            return True
+        return False
+    if user_norm == reply_norm:
+        return True
+    if len(reply_norm) >= 2 and reply_norm in user_norm and len(reply_norm) / max(len(user_norm), 1) >= 0.6:
+        return True
+    return False
 
 
 def strip_meta_reasoning(text: str) -> str:
