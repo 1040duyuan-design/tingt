@@ -131,7 +131,12 @@ def web_chat(payload: WebChatRequest) -> WebChatResponse:
             reason=blocked_reason,
         )
 
-    history = get_session_history(payload.session_id)
+    browser_history = [
+        {"role": item.role, "content": item.content}
+        for item in payload.history
+        if item.role in {"user", "assistant"} and item.content.strip()
+    ]
+    history = browser_history if browser_history else get_session_history(payload.session_id)
     attempts = [
         ("full_context", history),
         ("recent_context", history[-4:]),

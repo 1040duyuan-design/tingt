@@ -5,6 +5,7 @@
   const button = form.querySelector("button");
   const sessionId = crypto.randomUUID();
   const NETWORK_FALLBACK = "刚刚网络抖了一下，你再发一句。";
+  const conversationHistory = [];
 
   function appendMessage(role, meta, text) {
     const wrapper = document.createElement("div");
@@ -21,6 +22,13 @@
     wrapper.appendChild(textEl);
     chatLog.appendChild(wrapper);
     chatLog.scrollTop = chatLog.scrollHeight;
+  }
+
+  function pushHistory(role, content) {
+    conversationHistory.push({ role, content });
+    if (conversationHistory.length > 12) {
+      conversationHistory.splice(0, conversationHistory.length - 12);
+    }
   }
 
   function appendPendingIndicator() {
@@ -54,6 +62,7 @@
     if (!message) return;
 
     appendMessage("user", "你", message);
+    pushHistory("user", message);
     input.value = "";
     autosize();
     button.disabled = true;
@@ -72,6 +81,7 @@
             body: JSON.stringify({
               session_id: sessionId,
               message,
+              history: conversationHistory,
             }),
           });
           if (!response.ok) {
@@ -91,6 +101,7 @@
         data.degraded ? "TingT 分身（降级）" : "TingT 分身",
         data.reply
       );
+      pushHistory("assistant", data.reply);
     } catch (error) {
       pendingIndicator.remove();
       appendMessage("assistant", "TingT 分身（网络重试失败）", NETWORK_FALLBACK);
