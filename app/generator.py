@@ -8,7 +8,39 @@ from openai import OpenAIError
 
 def clean_reply(text: str) -> str:
     cleaned = re.sub(r"<think>.*?</think>\s*", "", text, flags=re.DOTALL | re.IGNORECASE)
+    cleaned = strip_meta_reasoning(cleaned)
     return cleaned.strip()
+
+
+def strip_meta_reasoning(text: str) -> str:
+    cleaned = text.strip()
+    lower = cleaned.lower()
+    meta_markers = [
+        "the user sent",
+        "according to the",
+        "good responses would be",
+        "i should respond",
+        "let me try",
+        "actually,",
+        "the unified style rule",
+    ]
+    if any(marker in lower for marker in meta_markers):
+        quoted = re.findall(r"[\"“”'`]?([\u4e00-\u9fff][^\"“”'`\n]{1,80})[\"“”'`]?", cleaned)
+        quoted = [q.strip(" ：:，,。. ") for q in quoted if re.search(r"[\u4e00-\u9fff]", q)]
+        if quoted:
+            return quoted[-1]
+
+        chinese_lines = [
+            line.strip(" -•*")
+            for line in cleaned.splitlines()
+            if re.search(r"[\u4e00-\u9fff]", line) and not re.search(r"[A-Za-z]{4,}", line)
+        ]
+        if chinese_lines:
+            return chinese_lines[-1]
+
+        return ""
+
+    return cleaned
 
 
 def ensure_non_empty_reply(text: str, provider: str) -> str:
@@ -27,7 +59,8 @@ def build_user_prompt(user_message: str) -> str:
         "First give your own reaction, state, judgment, or a small real-life fragment.\n"
         "Only ask a follow-up question if missing context truly blocks a natural reply.\n"
         "If you do ask, keep it secondary rather than making the whole reply just a question.\n"
-        "Avoid habitual endings like '你呢' '咋了' '找我啥事' unless really necessary."
+        "Avoid habitual endings like '你呢' '咋了' '找我啥事' unless really necessary.\n"
+        "Output only the final Chinese reply text. Do not show analysis, policy, reasoning, or candidate responses."
     )
 
 
