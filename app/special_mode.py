@@ -23,7 +23,7 @@ def has_identity_claim(text: str) -> bool:
 
 
 def has_exact_passcode(text: str) -> bool:
-    return PASSCODE in normalize_spaces(text)
+    return normalize_spaces(text) == PASSCODE
 
 
 def is_special_mode_trigger(text: str) -> bool:
@@ -36,16 +36,64 @@ def is_exit_message(text: str) -> bool:
     return any(phrase in compact for phrase in EXIT_PHRASES)
 
 
+def passcode_prefix_ok(parts: list[str]) -> bool:
+    candidate = normalize_spaces(" ".join(parts))
+    if not candidate:
+        return False
+    return PASSCODE.startswith(candidate)
+
+
 def resolve_session_mode(current_message: str, history: list[dict[str, str]] | None = None) -> str:
     mode = "unified"
-    turns = list(history or []) + [{"role": "user", "content": current_message}]
-    for item in turns:
-        if item.get("role") != "user":
-            continue
-        content = item.get("content", "")
+    pending_parts: list[str] = []
+    pending_remaining = 0
+
+    user_messages = [
+        item.get("content", "")
+        for item in (history or [])
+        if item.get("role") == "user"
+    ]
+    user_messages.append(current_message)
+
+    for content in user_messages:
         if is_exit_message(content):
             mode = "unified"
+            pending_parts = []
+            pending_remaining = 0
             continue
+
+        if mode == "locked_intimate":
+            continue
+
         if is_special_mode_trigger(content):
             mode = "locked_intimate"
+            pending_parts = []
+            pending_remaining = 0
+            continue
+
+        if has_identity_claim(content):
+            pending_parts = []
+            pending_remaining = 2
+            continue
+
+        if pending_remaining > 0:
+            pending_parts.append(content)
+            pending_remaining -= 1
+            combined = normalize_spaces(" ".join(pending_parts))
+
+            if combined == PASSCODE:
+                mode = "locked_intimate"
+                pending_parts = []
+                pending_remaining = 0
+                continue
+
+            if not passcode_prefix_ok(pending_parts):
+                pending_parts = []
+                pending_remaining = 0
+                continue
+
+            if pending_remaining == 0:
+                pending_parts = []
+                pending_remaining = 0
+
     return mode
