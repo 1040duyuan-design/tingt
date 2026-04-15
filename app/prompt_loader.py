@@ -19,5 +19,7 @@ def build_base_prompt() -> str:
         read_text("self_memory.md"),
         read_text("persona.md"),
         read_text("reply_mechanism.md"),
+        read_text("scene_policy.md"),
+        read_text("forbidden_examples.md"),
     ]
     return "\n\n".join(part for part in parts if part.strip())
