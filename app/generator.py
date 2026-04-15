@@ -12,6 +12,14 @@ def clean_reply(text: str) -> str:
     return cleaned.strip()
 
 
+def english_ratio(text: str) -> float:
+    letters = len(re.findall(r"[A-Za-z]", text))
+    meaningful = len(re.findall(r"[\u4e00-\u9fffA-Za-z]", text))
+    if meaningful == 0:
+        return 0.0
+    return letters / meaningful
+
+
 def normalize_for_echo_check(text: str) -> str:
     cleaned = re.sub(r"[\\s\\u3000]+", "", text)
     cleaned = re.sub(r"[，。！？!?、,.~～…：:；;（）()【】\\[\\]\"'`]+", "", cleaned)
@@ -41,23 +49,33 @@ def strip_meta_reasoning(text: str) -> str:
     lower = cleaned.lower()
     meta_markers = [
         "the user sent",
+        "the user said",
+        "the user just said",
         "according to the",
         "good responses would be",
         "i should respond",
+        "good response would be",
         "let me try",
+        "let me analyze",
         "actually,",
         "the unified style rule",
+        "the conversation so far",
+        "looking at the conversation flow",
+        "i'll capture the raw",
+        "current contact:",
+        "current mode:",
+        "which means",
+        "now tingt should",
+        "in response to",
     ]
     if any(marker in lower for marker in meta_markers):
-        quoted = re.findall(r"[\"“”'`]?([\u4e00-\u9fff][^\"“”'`\n]{1,80})[\"“”'`]?", cleaned)
-        quoted = [q.strip(" ：:，,。. ") for q in quoted if re.search(r"[\u4e00-\u9fff]", q)]
-        if quoted:
-            return quoted[-1]
-
         chinese_lines = [
-            line.strip(" -•*")
+            line.strip(" -•*\"“”'`")
             for line in cleaned.splitlines()
-            if re.search(r"[\u4e00-\u9fff]", line) and not re.search(r"[A-Za-z]{4,}", line)
+            if re.search(r"[\u4e00-\u9fff]", line)
+            and not re.search(r"[A-Za-z]{4,}", line)
+            and not line.strip().startswith("-")
+            and len(line.strip()) <= 40
         ]
         if chinese_lines:
             return chinese_lines[-1]
@@ -67,10 +85,35 @@ def strip_meta_reasoning(text: str) -> str:
     return cleaned
 
 
+def has_meta_leak(text: str) -> bool:
+    lower = text.lower()
+    markers = [
+        "the user said",
+        "the user just said",
+        "the user sent",
+        "which means",
+        "now tingt should",
+        "in response to",
+        "let me analyze",
+        "the conversation so far",
+        "current contact:",
+        "current mode:",
+    ]
+    if any(marker in lower for marker in markers):
+        return True
+    if english_ratio(text) > 0.35 and len(re.findall(r"[A-Za-z]", text)) >= 12:
+        return True
+    if re.search(r"\b(step|scene|label|reasoning|analysis)\b", lower):
+        return True
+    return False
+
+
 def ensure_non_empty_reply(text: str, provider: str) -> str:
     cleaned = clean_reply(text)
     if not cleaned:
         raise RuntimeError(f"{provider}_empty_reply")
+    if has_meta_leak(cleaned):
+        raise RuntimeError(f"{provider}_meta_leak")
     return cleaned
 
 
@@ -86,7 +129,11 @@ def build_user_prompt(user_message: str) -> str:
         "Never repeat the user's exact wording as the whole reply.\n"
         "If the user throws out a short call, exclamation, or name, react to it rather than echoing it.\n"
         "Avoid habitual endings like '你呢' '咋了' '找我啥事' unless really necessary.\n"
-        "Output only the final Chinese reply text. Do not show analysis, policy, reasoning, or candidate responses."
+        "只输出最终聊天正文。\n"
+        "不输出英文说明。\n"
+        "不输出用户语义解释。\n"
+        "不输出步骤、标签、推理、场景判断。\n"
+        "Output only the final Chinese reply text. Do not show analysis, policy, reasoning, labels, scene judgments, or candidate responses."
     )
 
 
