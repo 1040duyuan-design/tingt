@@ -10,7 +10,14 @@ from fastapi import Request
 
 from .classifier import classify_contact
 from .chat_logging import log_chat_event
-from .chat_persistence import append_chat_record, expected_debug_key, load_latest_session
+from .chat_persistence import (
+    expected_debug_key,
+    hash_ip,
+    init_chat_db,
+    insert_chat_message,
+    load_latest_session,
+    upsert_session,
+)
 from .fallbacks import FALLBACK_REPLY, blocked_reply
 from .generator import generate_reply
 from .models import IncomingMessage, ReplyResponse
@@ -29,6 +36,11 @@ load_dotenv()
 app = FastAPI(title="TingT WeChat Clone", version="0.1.0")
 templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "..", "templates"))
 app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "..", "static")), name="static")
+
+
+@app.on_event("startup")
+def startup() -> None:
+    init_chat_db()
 
 
 @app.get("/health")
@@ -114,7 +126,7 @@ def generate(payload: IncomingMessage) -> ReplyResponse:
 
 
 @app.post("/chat", response_model=WebChatResponse)
-def web_chat(payload: WebChatRequest) -> WebChatResponse:
+def web_chat(request: Request, payload: WebChatRequest) -> WebChatResponse:
     # Web MVP has no real contact identity yet, so use a generic browser visitor label.
     contact = "web_visitor"
     browser_history = [
@@ -123,6 +135,28 @@ def web_chat(payload: WebChatRequest) -> WebChatResponse:
         if item.role in {"user", "assistant"} and item.content.strip()
     ]
     classification = classify_contact(contact, payload.message, history=browser_history)
+    now = datetime.now(timezone.utc).isoformat()
+    forwarded_for = request.headers.get("x-forwarded-for", "")
+    client_ip = forwarded_for.split(",")[0].strip() if forwarded_for else (request.client.host if request.client else None)
+    upsert_session(
+        payload.session_id,
+        now,
+        source="web",
+        user_agent=request.headers.get("user-agent"),
+        ip_hash=hash_ip(client_ip),
+    )
+    insert_chat_message(
+        session_id=payload.session_id,
+        role="user",
+        content=payload.message,
+        mode=classification.mode,
+        confidence=classification.confidence,
+        degraded=False,
+        reason=None,
+        attempt=None,
+        history_turns=len(browser_history),
+        created_at=now,
+    )
     # Web chat should still answer normal low-context questions.
     # Only block clearly sensitive topics here; do not block generic visitors
     # just because relationship confidence is still low.
@@ -142,19 +176,17 @@ def web_chat(payload: WebChatRequest) -> WebChatResponse:
             confidence=classification.confidence,
             reason=blocked_reason,
         )
-        append_chat_record(
-            {
-                "ts": datetime.now(timezone.utc).isoformat(),
-                "event": "web_chat_blocked",
-                "session_id": payload.session_id,
-                "message": payload.message,
-                "reply": blocked_reply(blocked_reason),
-                "mode": classification.mode,
-                "confidence": classification.confidence,
-                "degraded": True,
-                "reason": blocked_reason,
-                "history_turns": len(browser_history),
-            }
+        insert_chat_message(
+            session_id=payload.session_id,
+            role="assistant",
+            content=blocked_reply(blocked_reason),
+            mode=classification.mode,
+            confidence=classification.confidence,
+            degraded=True,
+            reason=blocked_reason,
+            attempt="blocked",
+            history_turns=len(browser_history),
+            created_at=datetime.now(timezone.utc).isoformat(),
         )
         return WebChatResponse(
             ok=True,
@@ -190,20 +222,17 @@ def web_chat(payload: WebChatRequest) -> WebChatResponse:
                 history_turns=len(attempt_history),
                 attempt=attempt_name,
             )
-            append_chat_record(
-                {
-                    "ts": datetime.now(timezone.utc).isoformat(),
-                    "event": "web_chat_reply",
-                    "session_id": payload.session_id,
-                    "message": payload.message,
-                    "reply": reply,
-                    "mode": classification.mode,
-                    "confidence": classification.confidence,
-                    "degraded": False,
-                    "reason": None,
-                    "history_turns": len(attempt_history),
-                    "attempt": attempt_name,
-                }
+            insert_chat_message(
+                session_id=payload.session_id,
+                role="assistant",
+                content=reply,
+                mode=classification.mode,
+                confidence=classification.confidence,
+                degraded=False,
+                reason=None,
+                attempt=attempt_name,
+                history_turns=len(attempt_history),
+                created_at=datetime.now(timezone.utc).isoformat(),
             )
             return WebChatResponse(
                 ok=True,
@@ -225,22 +254,6 @@ def web_chat(payload: WebChatRequest) -> WebChatResponse:
                 history_turns=len(attempt_history),
                 attempt=attempt_name,
             )
-            append_chat_record(
-                {
-                    "ts": datetime.now(timezone.utc).isoformat(),
-                    "event": "web_chat_retry",
-                    "session_id": payload.session_id,
-                    "message": payload.message,
-                    "reply": None,
-                    "mode": classification.mode,
-                    "confidence": classification.confidence,
-                    "degraded": False,
-                    "reason": last_error,
-                    "history_turns": len(attempt_history),
-                    "attempt": attempt_name,
-                }
-            )
-
     log_chat_event(
         "web_chat_degraded",
         session_id=payload.session_id,
@@ -251,19 +264,17 @@ def web_chat(payload: WebChatRequest) -> WebChatResponse:
         reason=last_error,
         history_turns=len(history),
     )
-    append_chat_record(
-        {
-            "ts": datetime.now(timezone.utc).isoformat(),
-            "event": "web_chat_degraded",
-            "session_id": payload.session_id,
-            "message": payload.message,
-            "reply": FALLBACK_REPLY,
-            "mode": classification.mode,
-            "confidence": classification.confidence,
-            "degraded": True,
-            "reason": last_error,
-            "history_turns": len(history),
-        }
+    insert_chat_message(
+        session_id=payload.session_id,
+        role="assistant",
+        content=FALLBACK_REPLY,
+        mode=classification.mode,
+        confidence=classification.confidence,
+        degraded=True,
+        reason=last_error,
+        attempt="degraded_fallback",
+        history_turns=len(history),
+        created_at=datetime.now(timezone.utc).isoformat(),
     )
     return WebChatResponse(
         ok=True,

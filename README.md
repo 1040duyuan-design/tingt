@@ -10,6 +10,7 @@ Current design choices:
 - Contact scope: all users share one unified TingT style
 - Relationship routing: disabled
 - Fallback behavior: retry once, then use lightweight network fallback text
+- Chat persistence: backend SQLite tables (`chat_sessions`, `chat_messages`)
 
 Important:
 
@@ -40,6 +41,7 @@ Required env vars:
 - `MINIMAX_MODEL=MiniMax-M2.5`
 - `MINIMAX_BASE_URL=https://api.minimaxi.com/v1`
 - `MINIMAX_API_KEY=<real key>`
+- Optional: `CHAT_DB_PATH=/tmp/tingt_chat.sqlite3`
 
 Start command:
 
@@ -53,6 +55,7 @@ uvicorn app.main:app --host 0.0.0.0 --port $PORT
   - distilled persona assets
 - `app/`
   - FastAPI app, prompt loading, generator, safety, routing
+  - chat persistence now writes to backend SQLite tables
 - `templates/`
   - Jinja HTML
 - `static/`
