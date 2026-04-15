@@ -132,45 +132,66 @@ def web_chat(payload: WebChatRequest) -> WebChatResponse:
         )
 
     history = get_session_history(payload.session_id)
-    prompt = build_runtime_prompt(contact, classification.mode, history=history)
-    try:
-        reply = generate_reply(prompt, payload.message)
-        append_user_message(payload.session_id, payload.message)
-        append_assistant_message(payload.session_id, reply)
-        log_chat_event(
-            "web_chat_reply",
-            session_id=payload.session_id,
-            message=payload.message,
-            reply=reply,
-            mode=classification.mode,
-            confidence=classification.confidence,
-            degraded=False,
-            history_turns=len(history),
-        )
-        return WebChatResponse(
-            ok=True,
-            reply=reply,
-            mode=classification.mode,
-            confidence=classification.confidence,
-            degraded=False,
-            reason=None,
-        )
-    except RuntimeError as exc:
-        log_chat_event(
-            "web_chat_degraded",
-            session_id=payload.session_id,
-            message=payload.message,
-            mode=classification.mode,
-            confidence=classification.confidence,
-            degraded=True,
-            reason=str(exc),
-            history_turns=len(history),
-        )
-        return WebChatResponse(
-            ok=True,
-            reply=FALLBACK_REPLY,
-            mode=classification.mode,
-            confidence=classification.confidence,
-            degraded=True,
-            reason=str(exc),
-        )
+    attempts = [
+        ("full_context", history),
+        ("recent_context", history[-4:]),
+        ("no_context", []),
+    ]
+    last_error = None
+
+    for attempt_name, attempt_history in attempts:
+        prompt = build_runtime_prompt(contact, classification.mode, history=attempt_history)
+        try:
+            reply = generate_reply(prompt, payload.message)
+            append_user_message(payload.session_id, payload.message)
+            append_assistant_message(payload.session_id, reply)
+            log_chat_event(
+                "web_chat_reply",
+                session_id=payload.session_id,
+                message=payload.message,
+                reply=reply,
+                mode=classification.mode,
+                confidence=classification.confidence,
+                degraded=False,
+                history_turns=len(attempt_history),
+                attempt=attempt_name,
+            )
+            return WebChatResponse(
+                ok=True,
+                reply=reply,
+                mode=classification.mode,
+                confidence=classification.confidence,
+                degraded=False,
+                reason=None,
+            )
+        except RuntimeError as exc:
+            last_error = str(exc)
+            log_chat_event(
+                "web_chat_retry",
+                session_id=payload.session_id,
+                message=payload.message,
+                mode=classification.mode,
+                confidence=classification.confidence,
+                reason=last_error,
+                history_turns=len(attempt_history),
+                attempt=attempt_name,
+            )
+
+    log_chat_event(
+        "web_chat_degraded",
+        session_id=payload.session_id,
+        message=payload.message,
+        mode=classification.mode,
+        confidence=classification.confidence,
+        degraded=True,
+        reason=last_error,
+        history_turns=len(history),
+    )
+    return WebChatResponse(
+        ok=True,
+        reply=FALLBACK_REPLY,
+        mode=classification.mode,
+        confidence=classification.confidence,
+        degraded=True,
+        reason=last_error,
+    )
