@@ -155,6 +155,36 @@ def load_latest_session() -> dict | None:
     }
 
 
+def load_recent_real_messages(limit: int = 2) -> list[dict]:
+    with _connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                m.id,
+                m.session_id,
+                m.role,
+                m.content,
+                m.mode,
+                m.confidence,
+                m.degraded,
+                m.reason,
+                m.attempt,
+                m.history_turns,
+                m.created_at
+            FROM chat_messages m
+            JOIN chat_sessions s
+              ON s.session_id = m.session_id
+            WHERE s.session_id NOT LIKE 'debug-%'
+              AND COALESCE(m.content, '') != ''
+            ORDER BY m.id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
 def hash_ip(ip: str | None) -> str | None:
     if not ip:
         return None

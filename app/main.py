@@ -16,6 +16,7 @@ from .chat_persistence import (
     init_chat_db,
     insert_chat_message,
     load_latest_session,
+    load_recent_real_messages,
     upsert_session,
 )
 from .fallbacks import FALLBACK_REPLY, blocked_reply
@@ -85,6 +86,22 @@ def latest_session(x_debug_key: str | None = Header(default=None)) -> dict:
     if not latest:
         return {"ok": True, "session": None}
     return {"ok": True, "session": latest}
+
+
+@app.get("/__internal/recent-real-messages")
+def recent_real_messages(
+    limit: int = 2,
+    x_debug_key: str | None = Header(default=None),
+) -> dict:
+    expected = expected_debug_key()
+    if not expected or x_debug_key != expected:
+        raise HTTPException(status_code=403, detail="forbidden")
+
+    safe_limit = max(1, min(limit, 20))
+    return {
+        "ok": True,
+        "messages": load_recent_real_messages(safe_limit),
+    }
 
 
 @app.post("/generate-reply", response_model=ReplyResponse)
