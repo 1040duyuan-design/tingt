@@ -9,7 +9,7 @@ from fastapi import Request
 
 from .classifier import classify_contact
 from .chat_logging import log_chat_event
-from .fallbacks import FALLBACK_REPLY
+from .fallbacks import FALLBACK_REPLY, blocked_reply
 from .generator import generate_reply
 from .models import IncomingMessage, ReplyResponse
 from .router import build_runtime_prompt
@@ -104,6 +104,11 @@ def web_chat(payload: WebChatRequest) -> WebChatResponse:
     # Web MVP has no real contact identity yet, so use a generic browser visitor label.
     contact = "web_visitor"
     classification = classify_contact(contact, payload.message)
+    browser_history = [
+        {"role": item.role, "content": item.content}
+        for item in payload.history
+        if item.role in {"user", "assistant"} and item.content.strip()
+    ]
     # Web chat should still answer normal low-context questions.
     # Only block clearly sensitive topics here; do not block generic visitors
     # just because relationship confidence is still low.
@@ -111,6 +116,7 @@ def web_chat(payload: WebChatRequest) -> WebChatResponse:
         payload.message,
         classification.confidence,
         block_low_confidence=False,
+        history=browser_history,
     )
 
     if not allowed:
@@ -124,18 +130,13 @@ def web_chat(payload: WebChatRequest) -> WebChatResponse:
         )
         return WebChatResponse(
             ok=True,
-            reply=FALLBACK_REPLY,
+            reply=blocked_reply(blocked_reason),
             mode=classification.mode,
             confidence=classification.confidence,
             degraded=True,
             reason=blocked_reason,
         )
 
-    browser_history = [
-        {"role": item.role, "content": item.content}
-        for item in payload.history
-        if item.role in {"user", "assistant"} and item.content.strip()
-    ]
     history = browser_history if browser_history else get_session_history(payload.session_id)
     attempts = [
         ("full_context", history),

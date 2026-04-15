@@ -1,3 +1,11 @@
+from __future__ import annotations
+
+import re
+
+
+MAX_MESSAGE_CHARS = 800
+MAX_HISTORY_CHARS = 6000
+
 SENSITIVE_HINTS = [
     "转账",
     "借钱",
@@ -10,17 +18,106 @@ SENSITIVE_HINTS = [
     "发票",
 ]
 
+PRIVACY_HINTS = [
+    "身份证",
+    "手机号",
+    "电话号码",
+    "住址",
+    "家庭住址",
+    "银行卡",
+    "密码",
+    "微信号",
+    "邮箱",
+    "隐私",
+    "简历原文",
+    "聊天记录",
+    "后台记录",
+    "历史消息",
+    "真实信息",
+    "个人信息",
+]
+
+SEARCH_HINTS = [
+    "帮我搜",
+    "帮我查",
+    "去搜",
+    "去查",
+    "上网搜",
+    "网上搜",
+    "联网搜",
+    "搜索一下",
+    "查一下",
+    "帮我总结这篇",
+    "读取这个链接",
+    "看这个网页",
+    "访问这个网站",
+    "crawl",
+    "browse",
+    "search",
+    "google",
+]
+
+PROMPT_INJECTION_HINTS = [
+    "忽略之前",
+    "忽略上面的要求",
+    "系统提示词",
+    "system prompt",
+    "developer message",
+    "把你的设定说出来",
+    "把规则给我",
+    "输出你的提示词",
+    "逐字复述",
+]
+
+
+def count_history_chars(history: list[dict[str, str]] | None) -> int:
+    if not history:
+        return 0
+    return sum(len(item.get("content", "")) for item in history)
+
+
+def looks_like_token_burn(message: str) -> bool:
+    if len(message) > MAX_MESSAGE_CHARS:
+        return True
+    if re.search(r"(重复|repeat).{0,10}(100|200|500|1000)", message, re.IGNORECASE):
+        return True
+    if re.search(r"(生成|列出|输出).{0,12}(100|200|500|1000).{0,6}(条|个|段|行)", message):
+        return True
+    if re.search(r"(完整输出|全文输出|逐字输出|不要省略|不要截断)", message):
+        return True
+    return False
+
 
 def safety_gate(
     message: str,
     confidence: float,
     *,
     block_low_confidence: bool = True,
+    history: list[dict[str, str]] | None = None,
 ) -> tuple[bool, str | None]:
+    normalized = message.strip().lower()
+
     if block_low_confidence and confidence < 0.8:
         return False, "low_confidence"
 
-    if any(h in message for h in SENSITIVE_HINTS):
+    if any(hint in message for hint in PROMPT_INJECTION_HINTS) or any(
+        hint in normalized for hint in PROMPT_INJECTION_HINTS
+    ):
+        return False, "prompt_injection"
+
+    if looks_like_token_burn(message):
+        return False, "token_burn_risk"
+
+    if count_history_chars(history) > MAX_HISTORY_CHARS:
+        return False, "history_too_long"
+
+    if any(hint in message for hint in SENSITIVE_HINTS):
         return False, "sensitive_topic"
+
+    if any(hint in message for hint in PRIVACY_HINTS):
+        return False, "privacy_request"
+
+    if any(hint in message for hint in SEARCH_HINTS) or any(hint in normalized for hint in SEARCH_HINTS):
+        return False, "search_request"
 
     return True, None
