@@ -11,6 +11,26 @@ def clean_reply(text: str) -> str:
     return cleaned.strip()
 
 
+def ensure_non_empty_reply(text: str, provider: str) -> str:
+    cleaned = clean_reply(text)
+    if not cleaned:
+        raise RuntimeError(f"{provider}_empty_reply")
+    return cleaned
+
+
+def build_user_prompt(user_message: str) -> str:
+    return (
+        f"Incoming message:\n{user_message}\n\n"
+        "Reply as TingT in one unified voice.\n"
+        "Do not reflexively ask the user back.\n"
+        "Prefer 1-3 short spoken-Chinese sentences.\n"
+        "First give your own reaction, state, judgment, or a small real-life fragment.\n"
+        "Only ask a follow-up question if missing context truly blocks a natural reply.\n"
+        "If you do ask, keep it secondary rather than making the whole reply just a question.\n"
+        "Avoid habitual endings like '你呢' '咋了' '找我啥事' unless really necessary."
+    )
+
+
 def generate_reply(prompt: str, user_message: str) -> str:
     provider = os.getenv("MODEL_PROVIDER", "openai").lower()
 
@@ -37,12 +57,12 @@ def generate_reply(prompt: str, user_message: str) -> str:
                 {"role": "system", "content": prompt},
                 {
                     "role": "user",
-                    "content": f"Incoming message:\n{user_message}\n\nReply as TingT in the correct relationship mode.",
+                    "content": build_user_prompt(user_message),
                 },
             ],
             max_output_tokens=400,
         )
-        return clean_reply(response.output_text)
+        return ensure_non_empty_reply(response.output_text, "openai")
     except OpenAIError as exc:
         raise RuntimeError(f"openai_error: {exc}") from exc
 
@@ -63,13 +83,13 @@ def generate_reply_siliconflow(prompt: str, user_message: str) -> str:
                 {"role": "system", "content": prompt},
                 {
                     "role": "user",
-                    "content": f"Incoming message:\n{user_message}\n\nReply as TingT in the correct relationship mode.",
+                    "content": build_user_prompt(user_message),
                 },
             ],
             temperature=0.8,
             max_tokens=400,
         )
-        return clean_reply(response.choices[0].message.content or "")
+        return ensure_non_empty_reply(response.choices[0].message.content or "", "siliconflow")
     except OpenAIError as exc:
         raise RuntimeError(f"siliconflow_error: {exc}") from exc
 
@@ -93,8 +113,7 @@ def generate_reply_gemini(prompt: str, user_message: str) -> str:
                 "parts": [
                     {
                         "text": (
-                            f"{prompt}\n\nIncoming message:\n{user_message}\n\n"
-                            "Reply as TingT in the correct relationship mode."
+                            f"{prompt}\n\n{build_user_prompt(user_message)}"
                         )
                     }
                 ]
@@ -117,7 +136,10 @@ def generate_reply_gemini(prompt: str, user_message: str) -> str:
 
         data = resp.json()
         try:
-            return clean_reply(data["candidates"][0]["content"]["parts"][0]["text"])
+            return ensure_non_empty_reply(
+                data["candidates"][0]["content"]["parts"][0]["text"],
+                "gemini",
+            )
         except Exception as exc:
             raise RuntimeError(f"gemini_parse_error[{model}]: {data}") from exc
 
@@ -140,12 +162,12 @@ def generate_reply_minimax(prompt: str, user_message: str) -> str:
                 {"role": "system", "content": prompt},
                 {
                     "role": "user",
-                    "content": f"Incoming message:\n{user_message}\n\nReply as TingT in the correct relationship mode.",
+                    "content": build_user_prompt(user_message),
                 },
             ],
             temperature=0.8,
             max_tokens=400,
         )
-        return clean_reply(response.choices[0].message.content or "")
+        return ensure_non_empty_reply(response.choices[0].message.content or "", "minimax")
     except OpenAIError as exc:
         raise RuntimeError(f"minimax_error: {exc}") from exc

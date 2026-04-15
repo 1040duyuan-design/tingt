@@ -8,6 +8,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi import Request
 
 from .classifier import classify_contact
+from .chat_logging import log_chat_event
 from .fallbacks import FALLBACK_REPLY
 from .generator import generate_reply
 from .models import IncomingMessage, ReplyResponse
@@ -108,6 +109,14 @@ def web_chat(payload: WebChatRequest) -> WebChatResponse:
     )
 
     if not allowed:
+        log_chat_event(
+            "web_chat_blocked",
+            session_id=payload.session_id,
+            message=payload.message,
+            mode=classification.mode,
+            confidence=classification.confidence,
+            reason=blocked_reason,
+        )
         return WebChatResponse(
             ok=True,
             reply=FALLBACK_REPLY,
@@ -120,6 +129,15 @@ def web_chat(payload: WebChatRequest) -> WebChatResponse:
     prompt = build_runtime_prompt(contact, classification.mode)
     try:
         reply = generate_reply(prompt, payload.message)
+        log_chat_event(
+            "web_chat_reply",
+            session_id=payload.session_id,
+            message=payload.message,
+            reply=reply,
+            mode=classification.mode,
+            confidence=classification.confidence,
+            degraded=False,
+        )
         return WebChatResponse(
             ok=True,
             reply=reply,
@@ -129,6 +147,15 @@ def web_chat(payload: WebChatRequest) -> WebChatResponse:
             reason=None,
         )
     except RuntimeError as exc:
+        log_chat_event(
+            "web_chat_degraded",
+            session_id=payload.session_id,
+            message=payload.message,
+            mode=classification.mode,
+            confidence=classification.confidence,
+            degraded=True,
+            reason=str(exc),
+        )
         return WebChatResponse(
             ok=True,
             reply=FALLBACK_REPLY,
