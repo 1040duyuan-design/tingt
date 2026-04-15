@@ -1,7 +1,8 @@
 import os
+from datetime import datetime, timezone
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -9,6 +10,7 @@ from fastapi import Request
 
 from .classifier import classify_contact
 from .chat_logging import log_chat_event
+from .chat_persistence import append_chat_record, expected_debug_key, load_latest_session
 from .fallbacks import FALLBACK_REPLY, blocked_reply
 from .generator import generate_reply
 from .models import IncomingMessage, ReplyResponse
@@ -59,6 +61,18 @@ def index(request: Request):
             "subtitle": "这是 TingT 的数字分身测试版。",
         },
     )
+
+
+@app.get("/__internal/latest-session")
+def latest_session(x_debug_key: str | None = Header(default=None)) -> dict:
+    expected = expected_debug_key()
+    if not expected or x_debug_key != expected:
+        raise HTTPException(status_code=403, detail="forbidden")
+
+    latest = load_latest_session()
+    if not latest:
+        return {"ok": True, "session": None}
+    return {"ok": True, "session": latest}
 
 
 @app.post("/generate-reply", response_model=ReplyResponse)
@@ -128,6 +142,20 @@ def web_chat(payload: WebChatRequest) -> WebChatResponse:
             confidence=classification.confidence,
             reason=blocked_reason,
         )
+        append_chat_record(
+            {
+                "ts": datetime.now(timezone.utc).isoformat(),
+                "event": "web_chat_blocked",
+                "session_id": payload.session_id,
+                "message": payload.message,
+                "reply": blocked_reply(blocked_reason),
+                "mode": classification.mode,
+                "confidence": classification.confidence,
+                "degraded": True,
+                "reason": blocked_reason,
+                "history_turns": len(browser_history),
+            }
+        )
         return WebChatResponse(
             ok=True,
             reply=blocked_reply(blocked_reason),
@@ -162,6 +190,21 @@ def web_chat(payload: WebChatRequest) -> WebChatResponse:
                 history_turns=len(attempt_history),
                 attempt=attempt_name,
             )
+            append_chat_record(
+                {
+                    "ts": datetime.now(timezone.utc).isoformat(),
+                    "event": "web_chat_reply",
+                    "session_id": payload.session_id,
+                    "message": payload.message,
+                    "reply": reply,
+                    "mode": classification.mode,
+                    "confidence": classification.confidence,
+                    "degraded": False,
+                    "reason": None,
+                    "history_turns": len(attempt_history),
+                    "attempt": attempt_name,
+                }
+            )
             return WebChatResponse(
                 ok=True,
                 reply=reply,
@@ -182,6 +225,21 @@ def web_chat(payload: WebChatRequest) -> WebChatResponse:
                 history_turns=len(attempt_history),
                 attempt=attempt_name,
             )
+            append_chat_record(
+                {
+                    "ts": datetime.now(timezone.utc).isoformat(),
+                    "event": "web_chat_retry",
+                    "session_id": payload.session_id,
+                    "message": payload.message,
+                    "reply": None,
+                    "mode": classification.mode,
+                    "confidence": classification.confidence,
+                    "degraded": False,
+                    "reason": last_error,
+                    "history_turns": len(attempt_history),
+                    "attempt": attempt_name,
+                }
+            )
 
     log_chat_event(
         "web_chat_degraded",
@@ -192,6 +250,20 @@ def web_chat(payload: WebChatRequest) -> WebChatResponse:
         degraded=True,
         reason=last_error,
         history_turns=len(history),
+    )
+    append_chat_record(
+        {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "event": "web_chat_degraded",
+            "session_id": payload.session_id,
+            "message": payload.message,
+            "reply": FALLBACK_REPLY,
+            "mode": classification.mode,
+            "confidence": classification.confidence,
+            "degraded": True,
+            "reason": last_error,
+            "history_turns": len(history),
+        }
     )
     return WebChatResponse(
         ok=True,
