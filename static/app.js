@@ -23,6 +23,26 @@
     chatLog.scrollTop = chatLog.scrollHeight;
   }
 
+  function appendPendingIndicator() {
+    const wrapper = document.createElement("div");
+    wrapper.className = "message assistant pending";
+
+    const metaEl = document.createElement("p");
+    metaEl.className = "meta";
+    metaEl.textContent = "TingT 正在输入中";
+
+    const textEl = document.createElement("p");
+    textEl.className = "typing";
+    textEl.setAttribute("aria-live", "polite");
+    textEl.innerHTML = '<span></span><span></span><span></span>';
+
+    wrapper.appendChild(metaEl);
+    wrapper.appendChild(textEl);
+    chatLog.appendChild(wrapper);
+    chatLog.scrollTop = chatLog.scrollHeight;
+    return wrapper;
+  }
+
   function autosize() {
     input.style.height = "auto";
     input.style.height = `${Math.min(input.scrollHeight, 180)}px`;
@@ -38,6 +58,7 @@
     autosize();
     button.disabled = true;
     button.textContent = "发送中...";
+    const pendingIndicator = appendPendingIndicator();
 
     try {
       let response;
@@ -64,12 +85,14 @@
       }
 
       const data = await response.json();
+      pendingIndicator.remove();
       appendMessage(
         "assistant",
         data.degraded ? "TingT 分身（降级）" : "TingT 分身",
         data.reply
       );
     } catch (error) {
+      pendingIndicator.remove();
       appendMessage("assistant", "TingT 分身（网络重试失败）", NETWORK_FALLBACK);
     } finally {
       button.disabled = false;
