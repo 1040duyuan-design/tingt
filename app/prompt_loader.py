@@ -18,6 +18,6 @@ def build_base_prompt() -> str:
         read_text("resume_memory.md"),
         read_text("self_memory.md"),
         read_text("persona.md"),
-        read_text("relationship_modes.md"),
+        read_text("reply_mechanism.md"),
     ]
     return "\n\n".join(part for part in parts if part.strip())
