@@ -4,7 +4,7 @@
   const chatLog = document.getElementById("chat-log");
   const button = form.querySelector("button");
   const sessionId = crypto.randomUUID();
-  const NETWORK_FALLBACK = "刚刚网络抖了一下，你再发一句。";
+  const NETWORK_FALLBACK = "刚刚卡了一下，你再发一句。";
   const conversationHistory = [];
 
   function appendMessage(role, meta, text) {
@@ -37,7 +37,7 @@
 
     const metaEl = document.createElement("p");
     metaEl.className = "meta";
-    metaEl.textContent = "TingT 正在输入中";
+    metaEl.textContent = "TingT 正在输入";
 
     const textEl = document.createElement("p");
     textEl.className = "typing";
@@ -98,13 +98,13 @@
       pendingIndicator.remove();
       appendMessage(
         "assistant",
-        data.degraded ? "TingT 分身（降级）" : "TingT 分身",
+        "TingT",
         data.reply
       );
       pushHistory("assistant", data.reply);
     } catch (error) {
       pendingIndicator.remove();
-      appendMessage("assistant", "TingT 分身（网络重试失败）", NETWORK_FALLBACK);
+      appendMessage("assistant", "TingT", NETWORK_FALLBACK);
     } finally {
       button.disabled = false;
       button.textContent = "发送";
