@@ -32,6 +32,6 @@ def build_base_prompt() -> str:
 
 
 def build_mode_prompt(mode: str) -> str:
-    if mode == "locked_intimate":
+    if mode == "extreme_intimate":
         return read_text("locked_intimate_mode.md")
     return ""

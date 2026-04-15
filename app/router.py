@@ -10,7 +10,7 @@ def build_runtime_prompt(contact: str, mode: str, history: list[dict[str, str]] 
         f"当前模式：{mode}\n"
         + (
             "规则：当前会话已进入极近关系模式，只在本会话内生效。\n"
-            if mode == "locked_intimate"
+            if mode == "extreme_intimate"
             else "规则：忽略关系分层，对所有人使用同一套 TingT 说话方式。\n"
         )
     )

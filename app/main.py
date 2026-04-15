@@ -151,7 +151,12 @@ def web_chat(request: Request, payload: WebChatRequest) -> WebChatResponse:
         for item in payload.history
         if item.role in {"user", "assistant"} and item.content.strip()
     ]
-    classification = classify_contact(contact, payload.message, history=browser_history)
+    classification = classify_contact(
+        contact,
+        payload.message,
+        history=browser_history,
+        session_id=payload.session_id,
+    )
     now = datetime.now(timezone.utc).isoformat()
     forwarded_for = request.headers.get("x-forwarded-for", "")
     client_ip = forwarded_for.split(",")[0].strip() if forwarded_for else (request.client.host if request.client else None)
