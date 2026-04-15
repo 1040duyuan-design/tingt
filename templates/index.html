@@ -4,32 +4,14 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{{ title }}</title>
-    <link rel="stylesheet" href="/static/app.css?v=20260415e" />
+    <link rel="stylesheet" href="/static/app.css?v=20260415f" />
   </head>
   <body>
     <main class="page">
       <section class="hero">
-        <div class="hero-copy">
-          <p class="eyebrow">TingT</p>
-          <h1>{{ title }}</h1>
-          <p class="subtitle">想聊什么，直接说就行。</p>
-        </div>
-        <div class="hero-note">
-          <p class="note-label">聊天方式</p>
-          <p class="note-value">像平时一样说话</p>
-          <p class="note-text">回车发送，Shift + 回车换行。</p>
-        </div>
-      </section>
-
-      <section class="intro-card">
-        <div class="intro-block">
-          <p class="intro-label">这是做什么的</p>
-          <p class="intro-text">这是 TingT 的数字分身网页版本，用来模拟他平时说话的方式、表达节奏和聊天习惯。</p>
-        </div>
-        <div class="intro-block">
-          <p class="intro-label">它怎么来的</p>
-          <p class="intro-text">它不是随机生成的默认 AI 角色，而是基于 TingT 真实聊天风格、经历信息和持续调试收出来的一版分身。</p>
-        </div>
+        <p class="eyebrow">TingT</p>
+        <h1>{{ title }}</h1>
+        <p class="subtitle">这是 TingT 的数字分身。它基于真实聊天风格和经历信息持续收出来，下面可以直接聊。</p>
       </section>
 
       <section class="chat-shell">
@@ -42,7 +24,7 @@
 
         <form id="chat-form" class="composer">
           <div class="composer-head">
-            <p class="composer-title">发消息</p>
+            <p class="composer-title">直接说</p>
             <p class="composer-tip">Enter 发送，Shift + Enter 换行</p>
           </div>
           <textarea
@@ -53,12 +35,12 @@
             required
           ></textarea>
           <div class="composer-row">
-            <p class="hint">有话就说，不用想太多。</p>
+            <p class="hint">像平时聊天一样发就行。</p>
             <button type="submit">发送</button>
           </div>
         </form>
       </section>
     </main>
-    <script src="/static/app.js?v=20260415e"></script>
+    <script src="/static/app.js?v=20260415f"></script>
   </body>
 </html>

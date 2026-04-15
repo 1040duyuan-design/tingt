@@ -28,65 +28,14 @@ body {
 }
 
 .page {
-  max-width: 960px;
+  max-width: 840px;
   margin: 0 auto;
-  padding: 48px 24px 72px;
+  padding: 40px 20px 64px;
 }
 
 .hero {
-  margin-bottom: 24px;
-  display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(240px, 0.9fr);
-  gap: 20px;
-  align-items: stretch;
-}
-
-.hero-copy,
-.hero-note {
-  border: 1px solid var(--line);
-  border-radius: 28px;
-  background: var(--card);
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(10px);
-}
-
-.hero-copy {
-  padding: 28px 28px 24px;
-}
-
-.hero-note {
-  padding: 22px 22px 20px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-
-.intro-card {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.intro-block {
-  border: 1px solid var(--line);
-  border-radius: 24px;
-  background: var(--card);
-  box-shadow: var(--shadow);
-  padding: 20px 22px;
-}
-
-.intro-label {
-  margin: 0 0 10px;
-  font-size: 13px;
-  color: #9f9488;
-}
-
-.intro-text {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.8;
-  color: var(--ink);
+  margin-bottom: 18px;
+  padding: 8px 4px 0;
 }
 
 .eyebrow {
@@ -111,31 +60,11 @@ h1 {
   color: var(--muted);
 }
 
-.note-label {
-  margin: 0 0 10px;
-  font-size: 13px;
-  color: #9f9488;
-}
-
-.note-value {
-  margin: 0;
-  font-size: 30px;
-  line-height: 1.2;
-  font-weight: 600;
-}
-
-.note-text {
-  margin: 14px 0 0;
-  font-size: 14px;
-  line-height: 1.7;
-  color: var(--muted);
-}
-
 .chat-shell {
   background: var(--card-strong);
   border: 1px solid var(--line);
   border-radius: 30px;
-  padding: 24px;
+  padding: 22px;
   box-shadow: var(--shadow);
 }
 
@@ -267,7 +196,7 @@ textarea:focus {
 }
 
 .composer-row {
-  margin-top: 14px;
+  margin-top: 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -299,26 +228,11 @@ button:disabled {
 
 @media (max-width: 640px) {
   .page {
-    padding: 20px 14px 40px;
+    padding: 18px 14px 36px;
   }
 
   .hero {
-    grid-template-columns: 1fr;
-    gap: 14px;
-  }
-
-  .hero-copy,
-  .hero-note {
-    padding: 20px 18px;
-  }
-
-  .intro-card {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-
-  .intro-block {
-    padding: 18px 16px;
+    margin-bottom: 14px;
   }
 
   h1 {
