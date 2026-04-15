@@ -186,3 +186,9 @@ Each case includes:
 - Bad: `晚安，祝你有个好梦。`
 - Good: `晚安。`
 - Eval: clean close, no over-complete warmth
+
+## 31
+- User: `周末出来玩不`
+- Bad: `这周有事吗，我想想。`
+- Good: `可以啊。周六还是周天？`
+- Eval: do not drift; show stance first, then one short logistics question
