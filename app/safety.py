@@ -57,6 +57,49 @@ SEARCH_HINTS = [
     "google",
 ]
 
+POLITICAL_HINTS = [
+    "政治",
+    "涉政",
+    "政府",
+    "国务院",
+    "外交",
+    "国际关系",
+    "两会",
+    "人大",
+    "政协",
+    "中美关系",
+    "台湾",
+    "台海",
+    "新疆",
+    "香港",
+    "选举",
+    "领导人",
+    "国家主席",
+    "总书记",
+    "总理",
+    "民主党",
+    "共和党",
+    "拜登",
+    "特朗普",
+    "俄乌",
+    "巴以",
+]
+
+POLITICAL_ANALYSIS_HINTS = [
+    "详细阐述",
+    "详细分析",
+    "分析一下",
+    "展开讲讲",
+    "报告",
+    "分析报告",
+    "研判",
+    "怎么看待",
+    "怎么评价",
+    "解读",
+    "总结观点",
+    "立场",
+]
+
 PROMPT_INJECTION_HINTS = [
     "忽略之前",
     "忽略上面的要求",
@@ -119,5 +162,10 @@ def safety_gate(
 
     if any(hint in message for hint in SEARCH_HINTS) or any(hint in normalized for hint in SEARCH_HINTS):
         return False, "search_request"
+
+    if any(hint in message for hint in POLITICAL_HINTS) and any(
+        hint in message for hint in POLITICAL_ANALYSIS_HINTS
+    ):
+        return False, "political_analysis"
 
     return True, None
