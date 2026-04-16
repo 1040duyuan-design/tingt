@@ -161,6 +161,43 @@ def looks_assistantish_structure(text: str) -> bool:
     return "利大于弊" in text and len(text) >= 120
 
 
+def tighten_viewpoint_reply(text: str) -> str:
+    tightened = text.strip()
+    tightened = re.sub(
+        r"^(先说结论[，,:：]?|直接说[，,:：]?|说白了[，,:：]?|我先说结论[，,:：]?|简单说[，,:：]?)\s*",
+        "",
+        tightened,
+    )
+    tightened = re.sub(r"\b(首先|其次|最后|综合来看|总的来说|本质上|另一个是)\b[，,:：]?", "", tightened)
+    tightened = re.sub(r"(^|\n)\s*\d+\.\s*", r"\1", tightened)
+    tightened = re.sub(r"(^|\n)\s*[一二三四五六七八九十]+[、.]\s*", r"\1", tightened)
+    tightened = re.sub(r"\n{2,}", "\n", tightened)
+    tightened = re.sub(r"\s+", " ", tightened)
+    chunks = [chunk.strip(" ，。；;、") for chunk in re.split(r"[。！？!?；;\n]+", tightened) if chunk.strip(" ，。；;、")]
+    if not chunks:
+        return text.strip()
+
+    kept: list[str] = []
+    total_len = 0
+    for chunk in chunks:
+        if len(kept) >= 3:
+            break
+        if kept and len(chunk) <= 3:
+            continue
+        projected = total_len + len(chunk)
+        if kept and projected > 92:
+            break
+        kept.append(chunk)
+        total_len = projected
+
+    if not kept:
+        kept = chunks[:2]
+
+    if len(kept) == 1:
+        return f"{kept[0]}。"
+    return "。".join(kept) + "。"
+
+
 def needs_persona_rewrite(user_message: str, reply: str) -> bool:
     if looks_viewpoint_message(user_message):
         return True
@@ -182,8 +219,8 @@ def ensure_non_empty_reply(text: str, provider: str) -> str:
 
 def build_rewrite_prompt(user_message: str, draft_reply: str, *, strict: bool = False) -> str:
     strict_tail = (
-        "- 压到 2 到 4 句\n"
-        "- 不要超过 120 个汉字左右\n"
+        "- 压到 2 到 3 句\n"
+        "- 不要超过 90 个汉字左右\n"
         "- 不要出现“先说结论”“另一个是”“综合来看”\n"
         "- 宁可短一点，也不要像分析稿\n"
     ) if strict else ""
@@ -229,6 +266,8 @@ def rewrite_reply_openai_compatible(
             max_tokens=max_output_tokens if not strict else min(max_output_tokens, 180),
         )
         candidate = ensure_non_empty_reply(response.choices[0].message.content or "", provider_name)
+        if looks_viewpoint_message(user_message):
+            candidate = tighten_viewpoint_reply(candidate)
         if not looks_assistantish_structure(candidate) and (not strict or len(candidate) <= 180):
             return candidate
     raise RuntimeError(f"{provider_name}_structured_reply_after_rewrite")
@@ -258,6 +297,8 @@ def build_user_prompt(user_message: str) -> str:
 
 
 def generate_reply(prompt: str, user_message: str, *, max_output_tokens: int = 400) -> str:
+    if looks_viewpoint_message(user_message):
+        max_output_tokens = min(max_output_tokens, 220)
     provider = os.getenv("MODEL_PROVIDER", "minimax").strip().lower()
 
     if provider == "siliconflow":
@@ -300,6 +341,8 @@ def generate_reply(prompt: str, user_message: str, *, max_output_tokens: int = 4
                 max_output_tokens=max_output_tokens,
                 provider_name="openai",
             )
+        if looks_viewpoint_message(user_message):
+            reply = tighten_viewpoint_reply(reply)
         return reply
     except OpenAIError as exc:
         raise RuntimeError(f"openai_error: {exc}") from exc
@@ -339,6 +382,8 @@ def generate_reply_siliconflow(prompt: str, user_message: str, *, max_output_tok
                 max_output_tokens=max_output_tokens,
                 provider_name="siliconflow",
             )
+        if looks_viewpoint_message(user_message):
+            reply = tighten_viewpoint_reply(reply)
         return reply
     except OpenAIError as exc:
         raise RuntimeError(f"siliconflow_error: {exc}") from exc
@@ -391,6 +436,8 @@ def generate_reply_gemini(prompt: str, user_message: str, *, max_output_tokens: 
                 data["candidates"][0]["content"]["parts"][0]["text"],
                 "gemini",
             )
+            if looks_viewpoint_message(user_message):
+                reply = tighten_viewpoint_reply(reply)
             return reply
         except Exception as exc:
             raise RuntimeError(f"gemini_parse_error[{model}]: {data}") from exc
@@ -448,6 +495,8 @@ def generate_reply_minimax(prompt: str, user_message: str, *, max_output_tokens:
                         )
                     except RuntimeError:
                         pass
+                if looks_viewpoint_message(user_message):
+                    reply = tighten_viewpoint_reply(reply)
                 return reply
             user_prompt = (
                 build_user_prompt(user_message)
