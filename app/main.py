@@ -96,7 +96,7 @@ def admin_chats(request: Request, key: str | None = None):
     require_admin_key(key)
     today = datetime.now(LOCAL_TZ).date()
     sessions = []
-    for item in load_recent_sessions(200):
+    for item in load_recent_sessions(None):
         try:
             updated_at = datetime.fromisoformat(item["updated_at"])
         except Exception:

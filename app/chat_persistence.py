@@ -155,28 +155,28 @@ def load_latest_session() -> dict | None:
     }
 
 
-def load_recent_sessions(limit: int = 50) -> list[dict]:
+def load_recent_sessions(limit: int | None = 50) -> list[dict]:
     with _connect() as conn:
-        rows = conn.execute(
-            """
-            SELECT
-                s.session_id,
-                s.source,
-                s.user_agent,
-                s.ip_hash,
-                s.created_at,
-                s.updated_at,
-                COUNT(m.id) AS turn_count,
-                MAX(CASE WHEN m.role = 'user' THEN m.content END) AS last_user_message
-            FROM chat_sessions s
-            LEFT JOIN chat_messages m
-              ON s.session_id = m.session_id
-            GROUP BY s.session_id
-            ORDER BY s.updated_at DESC
-            LIMIT ?
-            """,
-            (limit,),
-        ).fetchall()
+        sql = """
+        SELECT
+            s.session_id,
+            s.source,
+            s.user_agent,
+            s.ip_hash,
+            s.created_at,
+            s.updated_at,
+            COUNT(m.id) AS turn_count,
+            MAX(CASE WHEN m.role = 'user' THEN m.content END) AS last_user_message
+        FROM chat_sessions s
+        LEFT JOIN chat_messages m
+          ON s.session_id = m.session_id
+        GROUP BY s.session_id
+        ORDER BY s.updated_at DESC
+        """
+        if limit is None:
+            rows = conn.execute(sql).fetchall()
+        else:
+            rows = conn.execute(sql + "\nLIMIT ?", (limit,)).fetchall()
     return [dict(row) for row in rows]
 
 
