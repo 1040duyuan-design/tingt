@@ -138,7 +138,7 @@ def build_user_prompt(user_message: str) -> str:
 
 
 def generate_reply(prompt: str, user_message: str) -> str:
-    provider = os.getenv("MODEL_PROVIDER", "minimax").lower()
+    provider = os.getenv("MODEL_PROVIDER", "minimax").strip().lower()
 
     if provider == "siliconflow":
         return generate_reply_siliconflow(prompt, user_message)
@@ -174,9 +174,9 @@ def generate_reply(prompt: str, user_message: str) -> str:
 
 
 def generate_reply_siliconflow(prompt: str, user_message: str) -> str:
-    api_key = os.getenv("SILICONFLOW_API_KEY")
-    base_url = os.getenv("SILICONFLOW_BASE_URL", "https://api.siliconflow.cn/v1")
-    model = os.getenv("SILICONFLOW_MODEL", "Qwen/Qwen2.5-72B-Instruct")
+    api_key = os.getenv("SILICONFLOW_API_KEY", "").strip()
+    base_url = os.getenv("SILICONFLOW_BASE_URL", "https://api.siliconflow.cn/v1").strip()
+    model = os.getenv("SILICONFLOW_MODEL", "Qwen/Qwen2.5-72B-Instruct").strip()
 
     if not api_key:
         raise RuntimeError("SILICONFLOW_API_KEY is missing")
@@ -201,8 +201,8 @@ def generate_reply_siliconflow(prompt: str, user_message: str) -> str:
 
 
 def generate_reply_gemini(prompt: str, user_message: str) -> str:
-    api_key = os.getenv("GEMINI_API_KEY")
-    primary_model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    primary_model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
     fallback_models = [
         m.strip()
         for m in os.getenv("GEMINI_FALLBACK_MODELS", "").split(",")
@@ -253,9 +253,9 @@ def generate_reply_gemini(prompt: str, user_message: str) -> str:
 
 
 def generate_reply_minimax(prompt: str, user_message: str) -> str:
-    api_key = os.getenv("MINIMAX_API_KEY")
-    base_url = os.getenv("MINIMAX_BASE_URL", "https://api.minimax.io/v1")
-    model = os.getenv("MINIMAX_MODEL", "MiniMax-M2.7")
+    api_key = os.getenv("MINIMAX_API_KEY", "").strip()
+    base_url = os.getenv("MINIMAX_BASE_URL", "https://api.minimaxi.com/v1").strip()
+    model = os.getenv("MINIMAX_MODEL", "MiniMax-M2.7").strip()
 
     if not api_key:
         raise RuntimeError("MINIMAX_API_KEY is missing")

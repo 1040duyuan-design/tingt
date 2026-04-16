@@ -205,3 +205,9 @@ def expected_debug_key() -> str | None:
     if not seed:
         return None
     return hashlib.sha256(seed.encode("utf-8")).hexdigest()[:24]
+
+
+def masked_hash(value: str | None) -> str | None:
+    if not value:
+        return None
+    return hashlib.sha256(value.strip().encode("utf-8")).hexdigest()[:16]

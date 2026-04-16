@@ -17,6 +17,7 @@ from .chat_persistence import (
     insert_chat_message,
     load_latest_session,
     load_recent_real_messages,
+    masked_hash,
     upsert_session,
 )
 from .fallbacks import FALLBACK_REPLY, blocked_reply
@@ -46,17 +47,17 @@ def startup() -> None:
 
 @app.get("/health")
 def health() -> dict:
-    provider = os.getenv("MODEL_PROVIDER", "minimax")
-    model = os.getenv("MINIMAX_MODEL", "MiniMax-M2.7")
+    provider = os.getenv("MODEL_PROVIDER", "minimax").strip()
+    model = os.getenv("MINIMAX_MODEL", "MiniMax-M2.7").strip()
 
     if provider == "siliconflow":
-        model = os.getenv("SILICONFLOW_MODEL", model)
+        model = os.getenv("SILICONFLOW_MODEL", model).strip()
     elif provider == "gemini":
-        model = os.getenv("GEMINI_MODEL", model)
+        model = os.getenv("GEMINI_MODEL", model).strip()
     elif provider == "minimax":
-        model = os.getenv("MINIMAX_MODEL", "MiniMax-M2.7")
+        model = os.getenv("MINIMAX_MODEL", "MiniMax-M2.7").strip()
     elif provider == "openai":
-        model = os.getenv("OPENAI_MODEL", "gpt-5.4-mini")
+        model = os.getenv("OPENAI_MODEL", "gpt-5.4-mini").strip()
 
     return {
         "ok": True,
@@ -103,6 +104,27 @@ def recent_real_messages(
     return {
         "ok": True,
         "messages": load_recent_real_messages(safe_limit),
+    }
+
+
+@app.get("/__internal/runtime-config")
+def runtime_config(x_debug_key: str | None = Header(default=None)) -> dict:
+    expected = expected_debug_key()
+    if not expected or x_debug_key != expected:
+        raise HTTPException(status_code=403, detail="forbidden")
+
+    provider = os.getenv("MODEL_PROVIDER", "minimax").strip()
+    return {
+        "ok": True,
+        "provider": provider,
+        "model": (
+            os.getenv("MINIMAX_MODEL", "MiniMax-M2.7").strip()
+            if provider == "minimax"
+            else os.getenv("OPENAI_MODEL", "gpt-5.4-mini").strip()
+        ),
+        "minimax_base_url": os.getenv("MINIMAX_BASE_URL", "https://api.minimaxi.com/v1").strip(),
+        "minimax_key_hash": masked_hash(os.getenv("MINIMAX_API_KEY")),
+        "debug_key_hash": masked_hash(expected),
     }
 
 
