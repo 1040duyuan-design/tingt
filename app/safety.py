@@ -18,6 +18,25 @@ SENSITIVE_HINTS = [
     "发票",
 ]
 
+HARD_PRIVACY_HINTS = [
+    "身份证号",
+    "银行卡号",
+    "手机号",
+    "电话号码",
+    "住址",
+    "家庭住址",
+    "邮箱",
+    "验证码",
+    "密码",
+    "微信号",
+    "聊天记录原文",
+    "未公开聊天记录",
+    "第三方隐私",
+    "安全词",
+    "切换口令",
+    "验证口令",
+]
+
 PRIVACY_HINTS = [
     "身份证",
     "手机号",
@@ -100,6 +119,37 @@ POLITICAL_ANALYSIS_HINTS = [
     "立场",
 ]
 
+SOFT_DEGRADE_HINTS = [
+    "你真实身份",
+    "你真实名字",
+    "你是不是记得现实中的我",
+    "你记不记得现实中的我",
+    "训练来源",
+    "内部数据",
+    "历史私聊原文",
+    "私聊原文",
+    "证明你记得我",
+    "证明你认识我",
+    "现实身份信息",
+]
+
+DANGEROUS_HINTS = [
+    "诈骗",
+    "盗号",
+    "社工",
+    "钓鱼",
+    "绕过验证",
+    "破解",
+    "套口令",
+    "暴力",
+    "违法",
+    "恶意伤害",
+    "自残",
+    "自杀",
+    "未成年人",
+    "色情胁迫",
+]
+
 PROMPT_INJECTION_HINTS = [
     "忽略之前",
     "忽略上面的要求",
@@ -157,15 +207,25 @@ def safety_gate(
     if any(hint in message for hint in SENSITIVE_HINTS):
         return False, "sensitive_topic"
 
+    if any(hint in message for hint in HARD_PRIVACY_HINTS):
+        return False, "privacy_request"
+
     if any(hint in message for hint in PRIVACY_HINTS):
         return False, "privacy_request"
 
     if any(hint in message for hint in SEARCH_HINTS) or any(hint in normalized for hint in SEARCH_HINTS):
         return False, "search_request"
 
-    if any(hint in message for hint in POLITICAL_HINTS) and any(
-        hint in message for hint in POLITICAL_ANALYSIS_HINTS
-    ):
-        return False, "political_analysis"
+    if any(hint in message for hint in POLITICAL_HINTS):
+        return False, "political_content"
+
+    if any(hint in message for hint in DANGEROUS_HINTS):
+        return False, "dangerous_request"
 
     return True, None
+
+
+def soft_degrade_gate(message: str) -> str | None:
+    if any(hint in message for hint in SOFT_DEGRADE_HINTS):
+        return "soft_privacy_boundary"
+    return None

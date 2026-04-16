@@ -19,6 +19,7 @@ def build_base_prompt() -> str:
         read_text("self_memory.md"),
         read_text("persona.md"),
         read_text("name_guard.md"),
+        read_text("safety_policy.md"),
         read_text("secret_mode_guard.md"),
         read_text("reply_mechanism.md"),
         read_text("anti_echo_policy.md"),

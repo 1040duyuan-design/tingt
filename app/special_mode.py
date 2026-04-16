@@ -51,6 +51,17 @@ def _clear_pending(state: SessionState) -> None:
     state.pending_passcode_parts = []
 
 
+def deactivate_special_mode(session_id: str, *, reason: str | None = None) -> None:
+    state = get_session_state(session_id)
+    state.relationship_mode = "unified"
+    _clear_pending(state)
+    log_chat_event(
+        "intimacy_mode_disabled",
+        session_id=session_id,
+        reason=reason,
+    )
+
+
 def _pending_expired(state: SessionState, now: datetime) -> bool:
     return bool(
         state.pending_identity

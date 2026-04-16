@@ -24,7 +24,8 @@ from .fallbacks import FALLBACK_REPLY, blocked_reply
 from .generator import generate_reply
 from .models import IncomingMessage, ReplyResponse
 from .router import build_runtime_prompt
-from .safety import safety_gate
+from .safety import safety_gate, soft_degrade_gate
+from .special_mode import deactivate_special_mode
 from .session_memory import (
     append_assistant_message,
     append_user_message,
@@ -203,6 +204,39 @@ def web_chat(request: Request, payload: WebChatRequest) -> WebChatResponse:
         history_turns=len(browser_history),
         created_at=now,
     )
+
+    soft_degrade_reason = soft_degrade_gate(payload.message)
+    if soft_degrade_reason:
+        deactivate_special_mode(payload.session_id, reason=soft_degrade_reason)
+        classification.mode = "unified"
+        reply = blocked_reply(soft_degrade_reason)
+        log_chat_event(
+            "web_chat_soft_degraded",
+            session_id=payload.session_id,
+            message=payload.message,
+            reason=soft_degrade_reason,
+        )
+        insert_chat_message(
+            session_id=payload.session_id,
+            role="assistant",
+            content=reply,
+            mode="unified",
+            confidence=classification.confidence,
+            degraded=True,
+            reason=soft_degrade_reason,
+            attempt="soft_degrade",
+            history_turns=len(browser_history),
+            created_at=datetime.now(timezone.utc).isoformat(),
+        )
+        return WebChatResponse(
+            ok=True,
+            reply=reply,
+            mode="unified",
+            confidence=classification.confidence,
+            degraded=True,
+            reason=soft_degrade_reason,
+        )
+
     # Web chat should still answer normal low-context questions.
     # Only block clearly sensitive topics here; do not block generic visitors
     # just because relationship confidence is still low.
@@ -214,6 +248,8 @@ def web_chat(request: Request, payload: WebChatRequest) -> WebChatResponse:
     )
 
     if not allowed:
+        deactivate_special_mode(payload.session_id, reason=blocked_reason or "blocked")
+        classification.mode = "unified"
         log_chat_event(
             "web_chat_blocked",
             session_id=payload.session_id,
@@ -226,7 +262,7 @@ def web_chat(request: Request, payload: WebChatRequest) -> WebChatResponse:
             session_id=payload.session_id,
             role="assistant",
             content=blocked_reply(blocked_reason),
-            mode=classification.mode,
+            mode="unified",
             confidence=classification.confidence,
             degraded=True,
             reason=blocked_reason,
@@ -237,7 +273,7 @@ def web_chat(request: Request, payload: WebChatRequest) -> WebChatResponse:
         return WebChatResponse(
             ok=True,
             reply=blocked_reply(blocked_reason),
-            mode=classification.mode,
+            mode="unified",
             confidence=classification.confidence,
             degraded=True,
             reason=blocked_reason,
