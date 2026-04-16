@@ -164,11 +164,13 @@ def looks_assistantish_structure(text: str) -> bool:
 def tighten_viewpoint_reply(text: str) -> str:
     tightened = text.strip()
     tightened = re.sub(
-        r"^(先说结论[，,:：]?|直接说[，,:：]?|说白了[，,:：]?|我先说结论[，,:：]?|简单说[，,:：]?)\s*",
+        r"^(先说结论[，,:：]?|直接说[，,:：]?|说白了[，,:：]?|我先说结论[，,:：]?|简单说[，,:：]?|真要说的话[，,:：]?|要我说[，,:：]?)\s*",
         "",
         tightened,
     )
-    tightened = re.sub(r"\b(首先|其次|最后|综合来看|总的来说|本质上|另一个是)\b[，,:：]?", "", tightened)
+    tightened = re.sub(r"\b(首先|其次|最后|综合来看|总的来说|本质上|另一个是|归根结底)\b[，,:：]?", "", tightened)
+    tightened = re.sub(r"[—–]+", "，", tightened)
+    tightened = re.sub(r"\b(核心是|本质是|关键是)\b[，,:：]?", "", tightened)
     tightened = re.sub(r"(^|\n)\s*\d+\.\s*", r"\1", tightened)
     tightened = re.sub(r"(^|\n)\s*[一二三四五六七八九十]+[、.]\s*", r"\1", tightened)
     tightened = re.sub(r"\n{2,}", "\n", tightened)
@@ -236,6 +238,7 @@ def build_rewrite_prompt(user_message: str, draft_reply: str, *, strict: bool = 
         "- 不要编号列点\n"
         "- 不要首先/其次/最后\n"
         "- 不要“先说结论”这种写法\n"
+        "- 不要“真要说的话”“核心是”“本质是”这种分析稿开头\n"
         "- 不要像通用 assistant\n"
         "- 1到3句，中文口语，短一点\n"
         "- 只输出最终聊天正文\n"
