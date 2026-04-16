@@ -15,7 +15,3 @@ class WebChatRequest(BaseModel):
 class WebChatResponse(BaseModel):
     ok: bool
     reply: str
-    mode: str | None = None
-    confidence: float | None = None
-    degraded: bool = False
-    reason: str | None = None

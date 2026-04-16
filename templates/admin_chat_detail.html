@@ -22,9 +22,7 @@
           {% for turn in session.turns %}
           <div class="message {{ 'user' if turn.role == 'user' else 'assistant' }}">
             <p class="meta">
-              {{ turn.role }} · mode={{ turn.mode or '—' }} · degraded={{ turn.degraded }}
-              {% if turn.reason %} · reason={{ turn.reason }}{% endif %}
-              {% if turn.attempt %} · attempt={{ turn.attempt }}{% endif %}
+              {{ '你' if turn.role == 'user' else 'TingT' }} · {{ turn.created_at }}
             </p>
             <p>{{ turn.content or "—" }}</p>
           </div>

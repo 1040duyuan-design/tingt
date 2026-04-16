@@ -24,6 +24,7 @@ def build_base_prompt() -> str:
         read_text("refusal_style.md"),
         read_text("secret_mode_guard.md"),
         read_text("reply_mechanism.md"),
+        read_text("viewpoint_expression.md"),
         read_text("anti_echo_policy.md"),
         read_text("bad_case_buckets.md"),
         read_text("invitation_policy.md"),

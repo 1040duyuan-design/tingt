@@ -309,10 +309,6 @@ def web_chat(request: Request, payload: WebChatRequest) -> WebChatResponse:
         return WebChatResponse(
             ok=True,
             reply=reply,
-            mode="unified",
-            confidence=classification.confidence,
-            degraded=True,
-            reason=soft_degrade_reason,
         )
 
     # Web chat should still answer normal low-context questions.
@@ -353,10 +349,6 @@ def web_chat(request: Request, payload: WebChatRequest) -> WebChatResponse:
         return WebChatResponse(
             ok=True,
             reply=blocked_reply(blocked_reason),
-            mode="unified",
-            confidence=classification.confidence,
-            degraded=True,
-            reason=blocked_reason,
         )
 
     history = browser_history if browser_history else get_session_history(payload.session_id)
@@ -401,10 +393,6 @@ def web_chat(request: Request, payload: WebChatRequest) -> WebChatResponse:
             return WebChatResponse(
                 ok=True,
                 reply=reply,
-                mode=classification.mode,
-                confidence=classification.confidence,
-                degraded=False,
-                reason=None,
             )
         except RuntimeError as exc:
             last_error = str(exc)
@@ -443,8 +431,4 @@ def web_chat(request: Request, payload: WebChatRequest) -> WebChatResponse:
     return WebChatResponse(
         ok=True,
         reply=FALLBACK_REPLY,
-        mode=classification.mode,
-        confidence=classification.confidence,
-        degraded=True,
-        reason=last_error,
     )
