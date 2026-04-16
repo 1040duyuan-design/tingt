@@ -9,6 +9,8 @@ from openai import OpenAIError
 def clean_reply(text: str) -> str:
     cleaned = re.sub(r"<think>.*?</think>\s*", "", text, flags=re.DOTALL | re.IGNORECASE)
     cleaned = strip_meta_reasoning(cleaned)
+    cleaned = re.sub(r"\*\*(.*?)\*\*", r"\1", cleaned)
+    cleaned = re.sub(r"__([^_]+)__", r"\1", cleaned)
     return cleaned.strip()
 
 

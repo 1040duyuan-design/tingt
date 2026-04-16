@@ -122,6 +122,21 @@ POLITICAL_ANALYSIS_HINTS = [
     "立场",
 ]
 
+NORMAL_VIEWPOINT_HINTS = [
+    "利大于弊",
+    "弊大于利",
+    "怎么看",
+    "怎么理解",
+    "分析",
+    "详细阐述",
+    "展开",
+    "判断",
+    "现象",
+    "行业",
+    "工作",
+    "为什么",
+]
+
 SOFT_DEGRADE_HINTS = [
     "你真实身份",
     "你真实名字",
@@ -232,6 +247,14 @@ def looks_like_token_burn(message: str) -> bool:
     return False
 
 
+def looks_like_normal_viewpoint_request(message: str) -> bool:
+    if len(message) > 500:
+        return False
+    if "\n" in message and message.count("\n") > 4:
+        return False
+    return any(hint in message for hint in NORMAL_VIEWPOINT_HINTS)
+
+
 def safety_gate(
     message: str,
     confidence: float,
@@ -249,10 +272,10 @@ def safety_gate(
     ):
         return False, "prompt_injection"
 
-    if looks_like_token_burn(message):
+    if looks_like_token_burn(message) and not looks_like_normal_viewpoint_request(message):
         return False, "token_burn_risk"
 
-    if looks_like_repeated_or_similar_bombing(message, history):
+    if looks_like_repeated_or_similar_bombing(message, history) and not looks_like_normal_viewpoint_request(message):
         return False, "token_burn_risk"
 
     if count_history_chars(history) > MAX_HISTORY_CHARS:
