@@ -1,5 +1,6 @@
 import os
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException
@@ -42,6 +43,7 @@ load_dotenv()
 app = FastAPI(title="TingT WeChat Clone", version="0.1.0")
 templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "..", "templates"))
 app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "..", "static")), name="static")
+LOCAL_TZ = ZoneInfo("Asia/Shanghai")
 
 
 @app.on_event("startup")
@@ -92,7 +94,15 @@ def require_admin_key(key: str | None) -> None:
 @app.get("/admin/chats", response_class=HTMLResponse)
 def admin_chats(request: Request, key: str | None = None):
     require_admin_key(key)
-    sessions = load_recent_sessions(100)
+    today = datetime.now(LOCAL_TZ).date()
+    sessions = []
+    for item in load_recent_sessions(200):
+        try:
+            updated_at = datetime.fromisoformat(item["updated_at"])
+        except Exception:
+            continue
+        if updated_at.astimezone(LOCAL_TZ).date() == today:
+            sessions.append(item)
     return templates.TemplateResponse(
         request,
         "admin_chats.html",
@@ -100,6 +110,7 @@ def admin_chats(request: Request, key: str | None = None):
             "title": "TingT 后台会话",
             "sessions": sessions,
             "access_key": key,
+            "today": str(today),
         },
     )
 
