@@ -14,6 +14,9 @@ class SessionState:
     pending_user_turns_remaining: int = 0
     pending_passcode_parts: list[str] = field(default_factory=list)
     relationship_mode: str = "unified"
+    failed_passcode_attempts: int = 0
+    intimate_cooldown_until: datetime | None = None
+    abuse_score: int = 0
 
 
 _session_states: dict[str, SessionState] = defaultdict(SessionState)

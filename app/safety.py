@@ -5,6 +5,8 @@ import re
 
 MAX_MESSAGE_CHARS = 800
 MAX_HISTORY_CHARS = 6000
+MAX_REPEAT_CHAR_RATIO = 0.45
+MAX_REPEAT_RUN = 24
 
 SENSITIVE_HINTS = [
     "转账",
@@ -169,8 +171,56 @@ def count_history_chars(history: list[dict[str, str]] | None) -> int:
     return sum(len(item.get("content", "")) for item in history)
 
 
+def normalize_similarity_text(text: str) -> str:
+    text = re.sub(r"\s+", "", text)
+    text = re.sub(r"[，。！？!?、,.~～…：:；;（）()【】\[\]\"'`]+", "", text)
+    return text.strip().lower()
+
+
+def repeated_char_ratio(text: str) -> float:
+    if not text:
+        return 0.0
+    counts: dict[str, int] = {}
+    for ch in text:
+        counts[ch] = counts.get(ch, 0) + 1
+    return max(counts.values()) / max(len(text), 1)
+
+
+def has_long_repeat_run(text: str) -> bool:
+    return bool(re.search(r"(.)\1{" + str(MAX_REPEAT_RUN) + r",}", text))
+
+
+def looks_like_repeated_or_similar_bombing(
+    message: str,
+    history: list[dict[str, str]] | None,
+) -> bool:
+    if not history:
+        return False
+    user_lines = [
+        item.get("content", "")
+        for item in history
+        if item.get("role") == "user" and item.get("content", "").strip()
+    ]
+    if not user_lines:
+        return False
+    normalized = normalize_similarity_text(message)
+    if not normalized:
+        return False
+    recent = [normalize_similarity_text(line) for line in user_lines[-3:]]
+    exact_hits = sum(1 for line in recent if line == normalized)
+    if exact_hits >= 2:
+        return True
+    if len(recent) >= 2 and all(line and (line in normalized or normalized in line) for line in recent[-2:]):
+        return True
+    return False
+
+
 def looks_like_token_burn(message: str) -> bool:
     if len(message) > MAX_MESSAGE_CHARS:
+        return True
+    if repeated_char_ratio(message) > MAX_REPEAT_CHAR_RATIO:
+        return True
+    if has_long_repeat_run(message):
         return True
     if re.search(r"(重复|repeat).{0,10}(100|200|500|1000)", message, re.IGNORECASE):
         return True
@@ -199,6 +249,9 @@ def safety_gate(
         return False, "prompt_injection"
 
     if looks_like_token_burn(message):
+        return False, "token_burn_risk"
+
+    if looks_like_repeated_or_similar_bombing(message, history):
         return False, "token_burn_risk"
 
     if count_history_chars(history) > MAX_HISTORY_CHARS:

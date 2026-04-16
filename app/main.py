@@ -30,6 +30,7 @@ from .session_memory import (
     append_assistant_message,
     append_user_message,
     get_session_history,
+    get_session_state,
 )
 from .web_models import WebChatRequest, WebChatResponse
 
@@ -171,6 +172,7 @@ def generate(payload: IncomingMessage) -> ReplyResponse:
 def web_chat(request: Request, payload: WebChatRequest) -> WebChatResponse:
     # Web MVP has no real contact identity yet, so use a generic browser visitor label.
     contact = "web_visitor"
+    session_state = get_session_state(payload.session_id)
     browser_history = [
         {"role": item.role, "content": item.content}
         for item in payload.history
@@ -207,6 +209,7 @@ def web_chat(request: Request, payload: WebChatRequest) -> WebChatResponse:
 
     soft_degrade_reason = soft_degrade_gate(payload.message)
     if soft_degrade_reason:
+        session_state.abuse_score = min(session_state.abuse_score + 1, 5)
         deactivate_special_mode(payload.session_id, reason=soft_degrade_reason)
         classification.mode = "unified"
         reply = blocked_reply(soft_degrade_reason)
@@ -248,6 +251,8 @@ def web_chat(request: Request, payload: WebChatRequest) -> WebChatResponse:
     )
 
     if not allowed:
+        if blocked_reason in {"token_burn_risk", "history_too_long", "prompt_injection", "political_content", "privacy_request", "dangerous_request"}:
+            session_state.abuse_score = min(session_state.abuse_score + 1, 5)
         deactivate_special_mode(payload.session_id, reason=blocked_reason or "blocked")
         classification.mode = "unified"
         log_chat_event(
@@ -290,7 +295,9 @@ def web_chat(request: Request, payload: WebChatRequest) -> WebChatResponse:
     for attempt_name, attempt_history in attempts:
         prompt = build_runtime_prompt(contact, classification.mode, history=attempt_history)
         try:
-            reply = generate_reply(prompt, payload.message)
+            max_output_tokens = 220 if session_state.abuse_score >= 2 else 400
+            reply = generate_reply(prompt, payload.message, max_output_tokens=max_output_tokens)
+            session_state.abuse_score = max(session_state.abuse_score - 1, 0)
             append_user_message(payload.session_id, payload.message)
             append_assistant_message(payload.session_id, reply)
             log_chat_event(

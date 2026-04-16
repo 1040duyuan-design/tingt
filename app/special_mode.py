@@ -13,6 +13,8 @@ EXIT_PHRASES = {
 }
 PENDING_TTL_MINUTES = 5
 PENDING_USER_TURNS = 3
+FAILED_PASSCODE_COOLDOWN_MINUTES = 10
+FAILED_PASSCODE_LIMIT = 3
 
 
 def normalize_spaces(text: str) -> str:
@@ -55,6 +57,7 @@ def deactivate_special_mode(session_id: str, *, reason: str | None = None) -> No
     state = get_session_state(session_id)
     state.relationship_mode = "unified"
     _clear_pending(state)
+    state.failed_passcode_attempts = 0
     log_chat_event(
         "intimacy_mode_disabled",
         session_id=session_id,
@@ -68,6 +71,10 @@ def _pending_expired(state: SessionState, now: datetime) -> bool:
         and state.pending_identity_expires_at
         and now > state.pending_identity_expires_at
     )
+
+
+def _cooldown_active(state: SessionState, now: datetime) -> bool:
+    return bool(state.intimate_cooldown_until and now < state.intimate_cooldown_until)
 
 
 def resolve_session_mode(session_id: str, current_message: str) -> str:
@@ -90,6 +97,8 @@ def resolve_session_mode(session_id: str, current_message: str) -> str:
 
     identity = extract_identity(compact)
     if identity:
+        if _cooldown_active(state, now):
+            return state.relationship_mode
         log_chat_event(
             "identity_detected",
             session_id=session_id,
@@ -121,6 +130,7 @@ def resolve_session_mode(session_id: str, current_message: str) -> str:
             pendingIdentity=state.pending_identity,
         )
         state.relationship_mode = "extreme_intimate"
+        state.failed_passcode_attempts = 0
         _clear_pending(state)
         log_chat_event(
             "intimacy_mode_enabled",
@@ -143,6 +153,7 @@ def resolve_session_mode(session_id: str, current_message: str) -> str:
                 pendingIdentity=state.pending_identity,
             )
             state.relationship_mode = "extreme_intimate"
+            state.failed_passcode_attempts = 0
             _clear_pending(state)
             log_chat_event(
                 "intimacy_mode_enabled",
@@ -151,6 +162,15 @@ def resolve_session_mode(session_id: str, current_message: str) -> str:
             )
             return state.relationship_mode
     else:
+        state.failed_passcode_attempts += 1
+        if state.failed_passcode_attempts >= FAILED_PASSCODE_LIMIT:
+            state.intimate_cooldown_until = now + timedelta(minutes=FAILED_PASSCODE_COOLDOWN_MINUTES)
+            log_chat_event(
+                "intimate_cooldown_enabled",
+                session_id=session_id,
+                failedAttempts=state.failed_passcode_attempts,
+                intimateCooldownUntil=state.intimate_cooldown_until.isoformat(),
+            )
         log_chat_event(
             "pending_identity_expired",
             session_id=session_id,

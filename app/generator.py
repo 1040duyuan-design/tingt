@@ -137,17 +137,17 @@ def build_user_prompt(user_message: str) -> str:
     )
 
 
-def generate_reply(prompt: str, user_message: str) -> str:
+def generate_reply(prompt: str, user_message: str, *, max_output_tokens: int = 400) -> str:
     provider = os.getenv("MODEL_PROVIDER", "minimax").strip().lower()
 
     if provider == "siliconflow":
-        return generate_reply_siliconflow(prompt, user_message)
+        return generate_reply_siliconflow(prompt, user_message, max_output_tokens=max_output_tokens)
 
     if provider == "minimax":
-        return generate_reply_minimax(prompt, user_message)
+        return generate_reply_minimax(prompt, user_message, max_output_tokens=max_output_tokens)
 
     if provider == "gemini":
-        return generate_reply_gemini(prompt, user_message)
+        return generate_reply_gemini(prompt, user_message, max_output_tokens=max_output_tokens)
 
     api_key = os.getenv("OPENAI_API_KEY")
     model = os.getenv("OPENAI_MODEL", "gpt-5.4-mini")
@@ -166,14 +166,14 @@ def generate_reply(prompt: str, user_message: str) -> str:
                     "content": build_user_prompt(user_message),
                 },
             ],
-            max_output_tokens=400,
+            max_output_tokens=max_output_tokens,
         )
         return ensure_non_empty_reply(response.output_text, "openai")
     except OpenAIError as exc:
         raise RuntimeError(f"openai_error: {exc}") from exc
 
 
-def generate_reply_siliconflow(prompt: str, user_message: str) -> str:
+def generate_reply_siliconflow(prompt: str, user_message: str, *, max_output_tokens: int = 400) -> str:
     api_key = os.getenv("SILICONFLOW_API_KEY", "").strip()
     base_url = os.getenv("SILICONFLOW_BASE_URL", "https://api.siliconflow.cn/v1").strip()
     model = os.getenv("SILICONFLOW_MODEL", "Qwen/Qwen2.5-72B-Instruct").strip()
@@ -193,14 +193,14 @@ def generate_reply_siliconflow(prompt: str, user_message: str) -> str:
                 },
             ],
             temperature=0.8,
-            max_tokens=400,
+            max_tokens=max_output_tokens,
         )
         return ensure_non_empty_reply(response.choices[0].message.content or "", "siliconflow")
     except OpenAIError as exc:
         raise RuntimeError(f"siliconflow_error: {exc}") from exc
 
 
-def generate_reply_gemini(prompt: str, user_message: str) -> str:
+def generate_reply_gemini(prompt: str, user_message: str, *, max_output_tokens: int = 400) -> str:
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
     primary_model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
     fallback_models = [
@@ -223,7 +223,8 @@ def generate_reply_gemini(prompt: str, user_message: str) -> str:
                         )
                     }
                 ]
-            }
+            },
+            {"parts": [{"text": f"Keep the reply within about {max_output_tokens} tokens."}]},
         ]
     }
 
@@ -252,7 +253,7 @@ def generate_reply_gemini(prompt: str, user_message: str) -> str:
     raise RuntimeError(last_error or "gemini_error: unknown")
 
 
-def generate_reply_minimax(prompt: str, user_message: str) -> str:
+def generate_reply_minimax(prompt: str, user_message: str, *, max_output_tokens: int = 400) -> str:
     api_key = os.getenv("MINIMAX_API_KEY", "").strip()
     base_url = os.getenv("MINIMAX_BASE_URL", "https://api.minimaxi.com/v1").strip()
     model = os.getenv("MINIMAX_MODEL", "MiniMax-M2.7").strip()
@@ -263,7 +264,7 @@ def generate_reply_minimax(prompt: str, user_message: str) -> str:
     client = OpenAI(api_key=api_key, base_url=base_url)
     try:
         user_prompt = build_user_prompt(user_message)
-        for attempt in range(2):
+        for attempt in range(3):
             response = client.chat.completions.create(
                 model=model,
                 messages=[
@@ -274,9 +275,19 @@ def generate_reply_minimax(prompt: str, user_message: str) -> str:
                     },
                 ],
                 temperature=0.8,
-                max_tokens=400,
+                max_tokens=max_output_tokens,
             )
-            reply = ensure_non_empty_reply(response.choices[0].message.content or "", "minimax")
+            try:
+                reply = ensure_non_empty_reply(response.choices[0].message.content or "", "minimax")
+            except RuntimeError as exc:
+                if str(exc) in {"minimax_meta_leak", "minimax_empty_reply"} and attempt < 2:
+                    user_prompt = (
+                        build_user_prompt(user_message)
+                        + "\n只输出最终中文聊天正文。"
+                        + " 不要英文，不要分析，不要解释，不要标签。"
+                    )
+                    continue
+                raise
             if not is_echo_reply(user_message, reply):
                 return reply
             user_prompt = (
