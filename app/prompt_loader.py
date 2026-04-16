@@ -33,5 +33,9 @@ def build_base_prompt() -> str:
 
 def build_mode_prompt(mode: str) -> str:
     if mode == "extreme_intimate":
-        return read_text("locked_intimate_mode.md")
+        parts = [
+            read_text("locked_intimate_mode.md"),
+            read_text("intimate_mode_grounding.md"),
+        ]
+        return "\n\n".join(part for part in parts if part.strip())
     return ""
