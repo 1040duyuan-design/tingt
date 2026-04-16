@@ -21,6 +21,7 @@ def build_base_prompt() -> str:
         read_text("name_guard.md"),
         read_text("safety_guardrails.md"),
         read_text("anti_abuse.md"),
+        read_text("refusal_style.md"),
         read_text("secret_mode_guard.md"),
         read_text("reply_mechanism.md"),
         read_text("anti_echo_policy.md"),

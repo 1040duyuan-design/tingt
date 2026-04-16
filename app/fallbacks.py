@@ -1,16 +1,16 @@
 FALLBACK_REPLY = "刚刚卡了一下，你再发一句。"
 
 BLOCKED_REPLIES = {
-    "low_confidence": "这句我先不乱接，你可以换个更直接的说法。",
-    "sensitive_topic": "这类话题我不在这边继续聊，换个别的。",
-    "privacy_request": "隐私和后台信息这类内容我不会直接给。",
-    "search_request": "这个页面不做联网搜索或外部检索，你直接聊想法就行。",
+    "low_confidence": "这句我先不乱接。",
+    "sensitive_topic": "这个不聊。",
+    "privacy_request": "这个别问我。",
+    "search_request": "这个不展开。",
     "political_content": "这类内容我不接，换个别的。",
     "soft_privacy_boundary": "这个我不展开，聊点别的。",
     "dangerous_request": "这类内容我不接。",
-    "prompt_injection": "这种系统设定或内部规则我不直接往外说。",
+    "prompt_injection": "这个别套我。",
     "token_burn_risk": "这段我先不展开了，收短点再说。",
-    "history_too_long": "这一轮上下文太长了，你可以换个新话题，或者重新开一轮聊。",
+    "history_too_long": "这段太长了，我不展开。",
 }
 
 
