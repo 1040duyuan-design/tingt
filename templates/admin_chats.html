@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/app.css?v=20260416a" />
+  </head>
+  <body>
+    <main class="page admin-page">
+      <section class="hero">
+        <h1>最近会话</h1>
+        <p class="subtitle">只读后台页。看最近会话和最后一轮内容。</p>
+      </section>
+
+      <section class="admin-shell">
+        <div class="admin-table">
+          <div class="admin-row admin-head">
+            <div>会话</div>
+            <div>最后更新时间</div>
+            <div>轮数</div>
+            <div>最后一句</div>
+          </div>
+          {% for item in sessions %}
+          <a class="admin-row admin-link" href="/admin/chats/{{ item.session_id }}?key={{ access_key }}">
+            <div class="mono">{{ item.session_id }}</div>
+            <div>{{ item.updated_at }}</div>
+            <div>{{ item.turn_count }}</div>
+            <div>{{ item.last_user_message or "—" }}</div>
+          </a>
+          {% endfor %}
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

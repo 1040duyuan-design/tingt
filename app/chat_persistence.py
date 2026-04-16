@@ -155,6 +155,68 @@ def load_latest_session() -> dict | None:
     }
 
 
+def load_recent_sessions(limit: int = 50) -> list[dict]:
+    with _connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                s.session_id,
+                s.source,
+                s.user_agent,
+                s.ip_hash,
+                s.created_at,
+                s.updated_at,
+                COUNT(m.id) AS turn_count,
+                MAX(CASE WHEN m.role = 'user' THEN m.content END) AS last_user_message
+            FROM chat_sessions s
+            LEFT JOIN chat_messages m
+              ON s.session_id = m.session_id
+            GROUP BY s.session_id
+            ORDER BY s.updated_at DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def load_session_by_id(session_id: str) -> dict | None:
+    with _connect() as conn:
+        session = conn.execute(
+            """
+            SELECT session_id, source, user_agent, ip_hash, created_at, updated_at
+            FROM chat_sessions
+            WHERE session_id = ?
+            LIMIT 1
+            """,
+            (session_id,),
+        ).fetchone()
+        if not session:
+            return None
+
+        turns = conn.execute(
+            """
+            SELECT id, role, content, mode, confidence, degraded, reason,
+                   attempt, history_turns, created_at
+            FROM chat_messages
+            WHERE session_id = ?
+            ORDER BY id ASC
+            """,
+            (session_id,),
+        ).fetchall()
+
+    return {
+        "session_id": session["session_id"],
+        "source": session["source"],
+        "user_agent": session["user_agent"],
+        "ip_hash": session["ip_hash"],
+        "created_at": session["created_at"],
+        "updated_at": session["updated_at"],
+        "turn_count": len(turns),
+        "turns": [dict(row) for row in turns],
+    }
+
+
 def load_recent_real_messages(limit: int = 2) -> list[dict]:
     with _connect() as conn:
         rows = conn.execute(

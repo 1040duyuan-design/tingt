@@ -17,6 +17,8 @@ from .chat_persistence import (
     insert_chat_message,
     load_latest_session,
     load_recent_real_messages,
+    load_recent_sessions,
+    load_session_by_id,
     masked_hash,
     upsert_session,
 )
@@ -81,11 +83,47 @@ def index(request: Request):
     )
 
 
+def require_admin_key(key: str | None) -> None:
+    expected = expected_debug_key()
+    if not expected or key != expected:
+        raise HTTPException(status_code=403, detail="forbidden")
+
+
+@app.get("/admin/chats", response_class=HTMLResponse)
+def admin_chats(request: Request, key: str | None = None):
+    require_admin_key(key)
+    sessions = load_recent_sessions(100)
+    return templates.TemplateResponse(
+        request,
+        "admin_chats.html",
+        {
+            "title": "TingT 后台会话",
+            "sessions": sessions,
+            "access_key": key,
+        },
+    )
+
+
+@app.get("/admin/chats/{session_id}", response_class=HTMLResponse)
+def admin_chat_detail(request: Request, session_id: str, key: str | None = None):
+    require_admin_key(key)
+    session = load_session_by_id(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="session_not_found")
+    return templates.TemplateResponse(
+        request,
+        "admin_chat_detail.html",
+        {
+            "title": f"会话 {session_id}",
+            "session": session,
+            "access_key": key,
+        },
+    )
+
+
 @app.get("/__internal/latest-session")
 def latest_session(x_debug_key: str | None = Header(default=None)) -> dict:
-    expected = expected_debug_key()
-    if not expected or x_debug_key != expected:
-        raise HTTPException(status_code=403, detail="forbidden")
+    require_admin_key(x_debug_key)
 
     latest = load_latest_session()
     if not latest:
@@ -98,9 +136,7 @@ def recent_real_messages(
     limit: int = 2,
     x_debug_key: str | None = Header(default=None),
 ) -> dict:
-    expected = expected_debug_key()
-    if not expected or x_debug_key != expected:
-        raise HTTPException(status_code=403, detail="forbidden")
+    require_admin_key(x_debug_key)
 
     safe_limit = max(1, min(limit, 20))
     return {
@@ -111,9 +147,7 @@ def recent_real_messages(
 
 @app.get("/__internal/runtime-config")
 def runtime_config(x_debug_key: str | None = Header(default=None)) -> dict:
-    expected = expected_debug_key()
-    if not expected or x_debug_key != expected:
-        raise HTTPException(status_code=403, detail="forbidden")
+    require_admin_key(x_debug_key)
 
     provider = os.getenv("MODEL_PROVIDER", "minimax").strip()
     return {

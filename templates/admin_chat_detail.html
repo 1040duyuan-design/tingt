@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/app.css?v=20260416a" />
+  </head>
+  <body>
+    <main class="page admin-page">
+      <section class="hero">
+        <h1>会话明细</h1>
+        <p class="subtitle mono">{{ session.session_id }}</p>
+        <p class="subtitle secondary">
+          轮数 {{ session.turn_count }} · 更新于 {{ session.updated_at }}
+        </p>
+      </section>
+
+      <section class="admin-shell">
+        <p class="admin-back"><a href="/admin/chats?key={{ access_key }}">返回列表</a></p>
+        <div class="chat-log admin-log">
+          {% for turn in session.turns %}
+          <div class="message {{ 'user' if turn.role == 'user' else 'assistant' }}">
+            <p class="meta">
+              {{ turn.role }} · mode={{ turn.mode or '—' }} · degraded={{ turn.degraded }}
+              {% if turn.reason %} · reason={{ turn.reason }}{% endif %}
+              {% if turn.attempt %} · attempt={{ turn.attempt }}{% endif %}
+            </p>
+            <p>{{ turn.content or "—" }}</p>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
