@@ -138,7 +138,7 @@ def build_user_prompt(user_message: str) -> str:
 
 
 def generate_reply(prompt: str, user_message: str) -> str:
-    provider = os.getenv("MODEL_PROVIDER", "openai").lower()
+    provider = os.getenv("MODEL_PROVIDER", "minimax").lower()
 
     if provider == "siliconflow":
         return generate_reply_siliconflow(prompt, user_message)

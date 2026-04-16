@@ -46,8 +46,8 @@ def startup() -> None:
 
 @app.get("/health")
 def health() -> dict:
-    provider = os.getenv("MODEL_PROVIDER", "openai")
-    model = os.getenv("OPENAI_MODEL", "gpt-5.4-mini")
+    provider = os.getenv("MODEL_PROVIDER", "minimax")
+    model = os.getenv("MINIMAX_MODEL", "MiniMax-M2.7")
 
     if provider == "siliconflow":
         model = os.getenv("SILICONFLOW_MODEL", model)
@@ -55,6 +55,8 @@ def health() -> dict:
         model = os.getenv("GEMINI_MODEL", model)
     elif provider == "minimax":
         model = os.getenv("MINIMAX_MODEL", "MiniMax-M2.7")
+    elif provider == "openai":
+        model = os.getenv("OPENAI_MODEL", "gpt-5.4-mini")
 
     return {
         "ok": True,
