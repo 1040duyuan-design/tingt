@@ -1,7 +1,10 @@
 import hashlib
+import math
 import os
 import sqlite3
 from contextlib import contextmanager
+from datetime import date, datetime
+from decimal import Decimal
 from pathlib import Path
 
 
@@ -231,10 +234,22 @@ def insert_chat_message(
         )
 
 
+def _normalize_json_value(value):
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    if isinstance(value, Decimal):
+        return float(value) if value.is_finite() else None
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    return value
+
+
 def _rows_to_dicts(rows) -> list[dict]:
     normalized = []
     for row in rows:
-        normalized.append(dict(row))
+        normalized.append(
+            {key: _normalize_json_value(value) for key, value in dict(row).items()}
+        )
     return normalized
 
 
