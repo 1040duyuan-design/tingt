@@ -9,7 +9,7 @@ BLOCKED_REPLIES = {
     "soft_privacy_boundary": "这个我不展开，聊点别的。",
     "dangerous_request": "这类内容我不接。",
     "prompt_injection": "这种系统设定或内部规则我不直接往外说。",
-    "token_burn_risk": "这条太长或太像批量生成请求了，收短一点再发。",
+    "token_burn_risk": "这段我先不展开了，收短点再说。",
     "history_too_long": "这一轮上下文太长了，你可以换个新话题，或者重新开一轮聊。",
 }
 
