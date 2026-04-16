@@ -150,10 +150,40 @@ def recent_real_messages(
     require_admin_key(x_debug_key)
 
     safe_limit = max(1, min(limit, 20))
-    return {
-        "ok": True,
-        "messages": load_recent_real_messages(safe_limit),
-    }
+    try:
+        messages = load_recent_real_messages(safe_limit)
+    except Exception:
+        messages = []
+        for session in load_recent_sessions(None):
+            session_id = session.get("session_id")
+            if not session_id or str(session_id).startswith("debug-"):
+                continue
+            detail = load_session_by_id(session_id)
+            if not detail:
+                continue
+            for turn in reversed(detail.get("turns", [])):
+                content = (turn.get("content") or "").strip()
+                if not content:
+                    continue
+                messages.append(
+                    {
+                        "id": turn.get("id"),
+                        "session_id": session_id,
+                        "role": turn.get("role"),
+                        "content": content,
+                        "mode": turn.get("mode"),
+                        "confidence": turn.get("confidence"),
+                        "degraded": turn.get("degraded"),
+                        "reason": turn.get("reason"),
+                        "attempt": turn.get("attempt"),
+                        "history_turns": turn.get("history_turns"),
+                        "created_at": turn.get("created_at"),
+                    }
+                )
+                if len(messages) >= safe_limit:
+                    return {"ok": True, "messages": messages}
+        return {"ok": True, "messages": messages}
+    return {"ok": True, "messages": messages}
 
 
 @app.get("/__internal/runtime-config")
