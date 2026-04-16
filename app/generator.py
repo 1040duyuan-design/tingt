@@ -147,6 +147,8 @@ def looks_assistantish_structure(text: str) -> bool:
         r"可以从.{0,8}角度",
         r"本质上这是",
         r"建议从以下",
+        r"另一个是",
+        r"一是.{0,40}二是",
     ]
     if any(re.search(pattern, text) for pattern in patterns):
         return True
@@ -158,9 +160,11 @@ def looks_assistantish_structure(text: str) -> bool:
 
 
 def needs_persona_rewrite(user_message: str, reply: str) -> bool:
+    if looks_viewpoint_message(user_message):
+        return True
     if looks_assistantish_structure(reply):
         return True
-    if looks_viewpoint_message(user_message) and len(reply) >= 140:
+    if len(reply) >= 140:
         return True
     return False
 
@@ -174,7 +178,13 @@ def ensure_non_empty_reply(text: str, provider: str) -> str:
     return cleaned
 
 
-def build_rewrite_prompt(user_message: str, draft_reply: str) -> str:
+def build_rewrite_prompt(user_message: str, draft_reply: str, *, strict: bool = False) -> str:
+    strict_tail = (
+        "- 压到 2 到 4 句\n"
+        "- 不要超过 120 个汉字左右\n"
+        "- 不要出现“先说结论”“另一个是”“综合来看”\n"
+        "- 宁可短一点，也不要像分析稿\n"
+    ) if strict else ""
     return (
         f"用户原话：\n{user_message}\n\n"
         f"草稿回复：\n{draft_reply}\n\n"
@@ -186,10 +196,11 @@ def build_rewrite_prompt(user_message: str, draft_reply: str) -> str:
         "- 不要总分总\n"
         "- 不要编号列点\n"
         "- 不要首先/其次/最后\n"
+        "- 不要“先说结论”这种写法\n"
         "- 不要像通用 assistant\n"
         "- 1到3句，中文口语，短一点\n"
         "- 只输出最终聊天正文\n"
-    )
+    ) + strict_tail
 
 
 def rewrite_reply_openai_compatible(
@@ -204,19 +215,21 @@ def rewrite_reply_openai_compatible(
     provider_name: str,
 ) -> str:
     client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": prompt},
-            {"role": "user", "content": build_rewrite_prompt(user_message, draft_reply)},
-        ],
-        temperature=0.8,
-        max_tokens=max_output_tokens,
-    )
-    rewritten = ensure_non_empty_reply(response.choices[0].message.content or "", provider_name)
-    if looks_assistantish_structure(rewritten):
-        raise RuntimeError(f"{provider_name}_structured_reply_after_rewrite")
-    return rewritten
+    candidate = draft_reply
+    for strict in (False, True):
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": build_rewrite_prompt(user_message, candidate, strict=strict)},
+            ],
+            temperature=0.8,
+            max_tokens=max_output_tokens if not strict else min(max_output_tokens, 180),
+        )
+        candidate = ensure_non_empty_reply(response.choices[0].message.content or "", provider_name)
+        if not looks_assistantish_structure(candidate) and (not strict or len(candidate) <= 180):
+            return candidate
+    raise RuntimeError(f"{provider_name}_structured_reply_after_rewrite")
 
 
 def build_user_prompt(user_message: str) -> str:
