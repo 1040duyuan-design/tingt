@@ -7,6 +7,7 @@ MAX_MESSAGE_CHARS = 800
 MAX_HISTORY_CHARS = 6000
 MAX_REPEAT_CHAR_RATIO = 0.45
 MAX_REPEAT_RUN = 24
+MIN_REPEAT_CHECK_CHARS = 20
 
 SENSITIVE_HINTS = [
     "转账",
@@ -218,7 +219,7 @@ def looks_like_repeated_or_similar_bombing(
 def looks_like_token_burn(message: str) -> bool:
     if len(message) > MAX_MESSAGE_CHARS:
         return True
-    if repeated_char_ratio(message) > MAX_REPEAT_CHAR_RATIO:
+    if len(message) >= MIN_REPEAT_CHECK_CHARS and repeated_char_ratio(message) > MAX_REPEAT_CHAR_RATIO:
         return True
     if has_long_repeat_run(message):
         return True
